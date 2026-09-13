@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Galaxy Redshift Explorer</title>
+<style>
+  :root{
+    --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
+    --panel:#0d1826; --panel-edge:#22354c;
+    --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f6f8;padding:16px 8px}
+  .app{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 18px 10px}
+  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.01em}
+  header .sub{font-size:12px;color:var(--muted)}
+  .plotwrap{background:var(--panel);border-top:1px solid var(--panel-edge);border-bottom:1px solid var(--panel-edge)}
+  svg{display:block;width:100%;height:auto}
+  .controls{padding:14px 18px 6px;display:flex;flex-wrap:wrap;gap:16px;align-items:center}
+  .zbox{font-family:var(--mono);font-size:26px;font-weight:600;min-width:120px}
+  .zbox small{font-size:12px;color:var(--muted);font-weight:400;display:block}
+  input[type=range]{flex:1;min-width:220px;accent-color:var(--accent);height:28px}
+  .toggles{display:flex;gap:14px;flex-wrap:wrap;padding:0 18px 6px;font-size:13px;color:var(--ink)}
+  .toggles label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .readouts{display:flex;gap:24px;flex-wrap:wrap;padding:4px 18px 10px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .readouts b{color:var(--ink);font-weight:600}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  .tablewrap{padding:0 18px 14px;overflow-x:auto}
+  th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}
+  th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+  td.num{font-family:var(--mono)}
+  td .chip{display:inline-block;padding:1px 8px;border-radius:99px;font-size:11.5px;font-family:var(--mono);color:#fff}
+  td .off{color:var(--muted);font-size:12px}
+  footer{padding:10px 18px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+  @media (max-width:560px){ header{flex-direction:column;gap:2px} .zbox{font-size:22px} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Galaxy Redshift Explorer</h1>
+    <div class="sub">Drag the slider to redshift a template galaxy spectrum through the filter set</div>
+  </header>
+
+  <div class="plotwrap"><svg id="plot" viewBox="0 0 920 430" role="img" aria-label="Observed-frame galaxy spectrum"></svg></div>
+
+  <div class="controls">
+    <div class="zbox"><small>redshift</small>z = <span id="zval">0.00</span></div>
+    <input id="z" type="range" min="0" max="6" step="0.01" value="0" aria-label="Redshift">
+  </div>
+
+  <div class="toggles">
+    <label><input id="tFilt" type="checkbox" checked> Filter bandpasses</label>
+    <label><input id="tRest" type="checkbox"> Rest-frame comparison</label>
+    <label><input id="tLab" type="checkbox" checked> Line labels</label>
+    <label><input id="tIGM" type="checkbox" checked> IGM absorption</label>
+  </div>
+
+  <div class="readouts">
+    <span>4000 &Aring; break at <b id="brk">4000 &Aring;</b></span>
+    <span>Lookback time <b id="tlb">0.0 Gyr</b></span>
+    <span>Age of Universe then <b id="age">13.5 Gyr</b></span>
+  </div>
+
+  <div class="tablewrap">
+    <table aria-label="Emission line wavelengths">
+      <thead><tr><th>Line</th><th>Rest &lambda;</th><th>Observed &lambda;</th><th>Falls in band</th></tr></thead>
+      <tbody id="ltab"></tbody>
+    </table>
+  </div>
+
+  <footer>Template spectrum and filter curves are illustrative and flux-normalised. Lookback times assume flat &Lambda;CDM (H&#8320; = 70, &Omega;&#8339; = 0.3).<br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.</footer>
+</div>
+
+<script>
+"use strict";
+// ---------- physics: template, lines, filters ----------
+const LINES = [
+  {name:"Ly\u03b1",        lam:1216, amp:1.60, sig:9},
+  {name:"[OII]",           lam:3727, amp:0.90, sig:10},
+  {name:"H\u03b2",         lam:4861, amp:0.45, sig:10},
+  {name:"[OIII]",          lam:5007, amp:1.05, sig:10},
+  {name:"H\u03b1",         lam:6563, amp:1.30, sig:12},
+];
+const ABS = [ {lam:3934, amp:0.18, sig:14}, {lam:3969, amp:0.15, sig:14} ]; // Ca H&K
+
+const FILTERS = [
+  {name:"u", c:3550, w:600,  col:"#8b7cf8"},
+  {name:"g", c:4770, w:1400, col:"#41c48a"},
+  {name:"r", c:6230, w:1300, col:"#ffab4a"},
+  {name:"i", c:7620, w:1300, col:"#f2705f"},
+  {name:"z", c:9130, w:1100, col:"#d5527c"},
+  {name:"J", c:12350,w:1600, col:"#7f95b0"},
+  {name:"H", c:16620,w:2900, col:"#7f95b0"},
+  {name:"Ks",c:21590,w:2700, col:"#7f95b0"},
+];
+
+function continuum(l){                       // rest-frame F_lambda, arbitrary units
+  if(l < 912) return 0.015;                  // Lyman limit
+  let c = 0.32 + 0.52/(1+Math.exp(-(l-3900)/90));   // 4000 A break
+  c *= Math.pow(5000/l, 0.35);               // gentle red slope
+  if(l < 1216) c *= 0.75;
+  return c;
+}
+function gauss(l, l0, sig){ const d=(l-l0)/sig; return Math.exp(-0.5*d*d); }
+
+function igmT(lrest, z){                     // crude Lya-forest transmission blueward of Lya
+  const tau = 0.85*Math.pow((1+z)/4.5, 4.3);
+  const edge = 1/(1+Math.exp((lrest-1213)/4));   // smooth ramp, resolved by the sampler
+  return Math.exp(-tau*edge);
+}
+function flux(lrest, z, useIGM){
+  let f = continuum(lrest);
+  for(const L of LINES) f += L.amp*gauss(lrest, L.lam, L.sig);
+  for(const A of ABS)   f -= A.amp*gauss(lrest, A.lam, A.sig)*(lrest>3600?1:0);
+  if(useIGM) f *= igmT(lrest, z);
+  return Math.max(f, 0);
+}
+
+const FNORM = 2.2;    // fixed so the curve never rescales as lines enter or leave the range
+const LMIN=3000, LMAX=26000;   // plotted observed-frame range, Angstroms
+
+// Sample points: a base log grid plus a dense cluster on every narrow feature,
+// so peaks are always resolved and line heights stay steady as z changes.
+function sampleGrid(z){
+  const pts=[], lo=Math.log10(LMIN), hi=Math.log10(LMAX);
+  for(let i=0;i<=900;i++) pts.push(Math.pow(10,lo+(hi-lo)*i/900));
+  const feats=[];
+  for(const L of LINES) feats.push({c:L.lam, s:L.sig});
+  for(const A of ABS)   feats.push({c:A.lam, s:A.sig});
+  feats.push({c:1213,s:5},{c:3900,s:90},{c:912,s:6});   // IGM edge, 4000 A break, Lyman limit
+  for(const f of feats){
+    const c=f.c*(1+z), s=f.s*(1+z);
+    for(let k=-30;k<=30;k++) pts.push(c+s*k*0.18);      // out to +/- 5.4 sigma
+  }
+  return pts.filter(l=>l>=LMIN&&l<=LMAX).sort((a,b)=>a-b);
+}
+
+// lookback time, flat LCDM, simple trapezoid
+const H0=70, Om=0.3, OL=0.7, THub=977.8/H0; // Gyr
+function lookback(z){
+  const n=300; let s=0;
+  for(let i=0;i<n;i++){
+    const zi=z*(i+0.5)/n;
+    s += 1/((1+zi)*Math.sqrt(Om*Math.pow(1+zi,3)+OL));
+  }
+  return THub*s*(z/n);
+}
+const AGE0 = 13.47;                          // Gyr for these params
+
+// ---------- plotting ----------
+const MONO='ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace';
+const svg=document.getElementById("plot"), NS="http://www.w3.org/2000/svg";
+const W=920,H=430, ML=52,MR=16,MT=18,MB=44;
+const xOf=l=>ML+(Math.log10(l)-Math.log10(LMIN))/(Math.log10(LMAX)-Math.log10(LMIN))*(W-ML-MR);
+const yOf=f=>MT+(1-f)*(H-MT-MB);            // f in [0,1]
+
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+
+function draw(){
+  const z=+zs.value, showF=tFilt.checked, showR=tRest.checked, showL=tLab.checked, useI=tIGM.checked;
+  svg.textContent="";
+
+  // axes + gridlines at labelled wavelengths
+  const ticks=[3000,4000,5000,7000,10000,15000,20000,25000];
+  for(const t of ticks){
+    svg.appendChild(el("line",{x1:xOf(t),x2:xOf(t),y1:MT,y2:H-MB,stroke:"#1c2c42","stroke-width":1}));
+    const tx=el("text",{x:xOf(t),y:H-MB+16,fill:"#7f95b0","font-size":11,"text-anchor":"middle","font-family":MONO});
+    tx.textContent=t>=10000?(t/10000)+"\u00b5m":t+"\u00c5"; svg.appendChild(tx);
+  }
+  const xl=el("text",{x:(ML+W-MR)/2,y:H-8,fill:"#a9bbcf","font-size":12,"text-anchor":"middle"});
+  xl.textContent="Observed wavelength"; svg.appendChild(xl);
+  const yl=el("text",{x:14,y:(MT+H-MB)/2,fill:"#a9bbcf","font-size":12,"text-anchor":"middle",transform:`rotate(-90 14 ${(MT+H-MB)/2})`});
+  yl.textContent="Relative flux  F\u03bb"; svg.appendChild(yl);
+
+  // filters (drawn under the spectrum)
+  if(showF){
+    for(const F of FILTERS){
+      let d=""; const l0=F.c-F.w, l1=F.c+F.w;
+      for(let i=0;i<=60;i++){
+        const l=l0+(l1-l0)*i/60; if(l<LMIN||l>LMAX) continue;
+        const h=0.24*gauss(l,F.c,F.w/2.4);
+        d+=(d?"L":"M")+xOf(l).toFixed(1)+" "+yOf(h).toFixed(1)+" ";
+      }
+      if(!d) continue;
+      d+="L"+xOf(Math.min(l1,LMAX)).toFixed(1)+" "+yOf(0)+" L"+xOf(Math.max(l0,LMIN)).toFixed(1)+" "+yOf(0)+" Z";
+      svg.appendChild(el("path",{d,fill:F.col,"fill-opacity":0.22,stroke:F.col,"stroke-opacity":0.55,"stroke-width":1}));
+      if(F.c>LMIN&&F.c<LMAX){
+        const t=el("text",{x:xOf(F.c),y:yOf(0)-6,fill:F.col,"font-size":11,"text-anchor":"middle","font-family":MONO});
+        t.textContent=F.name; svg.appendChild(t);
+      }
+    }
+  }
+
+  // rest-frame ghost
+  if(showR){
+    const g0=sampleGrid(0);
+    let d="";
+    for(let i=0;i<g0.length;i++){
+      const l=g0[i];
+      const f=Math.min(flux(l,0,false)/FNORM,1);
+      d+=(i?"L":"M")+xOf(l).toFixed(1)+" "+yOf(f*0.72+0.02).toFixed(1)+" ";
+    }
+    svg.appendChild(el("path",{d,fill:"none",stroke:"var(--ghost)","stroke-width":1,"stroke-dasharray":"4 4","stroke-opacity":0.6}));
+  }
+
+  // observed spectrum
+  const grid=sampleGrid(z);
+  let d="";
+  for(let i=0;i<grid.length;i++){
+    const lobs=grid[i];
+    const f=Math.min(flux(lobs/(1+z),z,useI)/FNORM,1);
+    d+=(i?"L":"M")+xOf(lobs).toFixed(1)+" "+yOf(f*0.72+0.02).toFixed(1)+" ";
+  }
+  svg.appendChild(el("path",{d,fill:"none",stroke:"var(--spec)","stroke-width":2,"stroke-linejoin":"round"}));
+
+  // line labels riding the peaks
+  if(showL){
+    for(const L of LINES){
+      const lo=L.lam*(1+z); if(lo<LMIN||lo>LMAX) continue;
+      const f=Math.min(flux(L.lam,z,useI)/FNORM,1);
+      const x=xOf(lo), y=yOf(f*0.72+0.02);
+      svg.appendChild(el("line",{x1:x,x2:x,y1:y-6,y2:y-20,stroke:"#e9eef4","stroke-width":1,"stroke-opacity":0.7}));
+      const t=el("text",{x:x,y:y-25,fill:"#e9eef4","font-size":11,"text-anchor":"middle","font-family":MONO});
+      t.textContent=L.name; svg.appendChild(t);
+    }
+  }
+}
+
+// ---------- readouts ----------
+function bandOf(lobs){
+  let best=null,score=1e9;
+  for(const F of FILTERS){
+    const d=Math.abs(lobs-F.c);
+    if(d<F.w*0.55 && d<score){best=F;score=d;}
+  }
+  return best;
+}
+function updateText(){
+  const z=+zs.value;
+  document.getElementById("zval").textContent=z.toFixed(2);
+  document.getElementById("brk").innerHTML=Math.round(4000*(1+z)).toLocaleString()+" \u00c5";
+  const tl=lookback(z);
+  document.getElementById("tlb").textContent=tl.toFixed(1)+" Gyr";
+  document.getElementById("age").textContent=Math.max(AGE0-tl,0).toFixed(1)+" Gyr";
+  const tb=document.getElementById("ltab"); tb.textContent="";
+  for(const L of LINES){
+    const lo=L.lam*(1+z), b=bandOf(lo), vis=lo<=LMAX;
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${L.name}</td><td class="num">${L.lam.toLocaleString()} \u00c5</td>`+
+      `<td class="num">${vis?Math.round(lo).toLocaleString()+" \u00c5":'<span class="off">beyond K band</span>'}</td>`+
+      `<td>${b&&vis?`<span class="chip" style="background:${b.col}">${b.name}</span>`:'<span class="off">none</span>'}</td>`;
+    tb.appendChild(tr);
+  }
+}
+
+const zs=document.getElementById("z");
+const tFilt=document.getElementById("tFilt"),tRest=document.getElementById("tRest"),
+      tLab=document.getElementById("tLab"),tIGM=document.getElementById("tIGM");
+function render(){draw();updateText();}
+for(const c of [zs,tFilt,tRest,tLab,tIGM]) c.addEventListener("input",render);
+render();
+</script>
+</body>
+</html>
