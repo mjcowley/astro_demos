@@ -10,14 +10,14 @@ Companion repository: [Astro_Code](https://github.com/mjcowley/Astro_Code), a co
 
 | Demo | Description |
 | --- | --- |
-| [Redshift Explorer](https://mjcowley.github.io/Astro_Demos/redshift-explorer/) | Drag a slider to redshift a template galaxy spectrum through a set of optical and near-infrared filters. |
+| [Redshift Explorer](https://mjcowley.github.io/astro_demos/redshift-explorer/) | Drag a slider to redshift a template galaxy spectrum through a set of optical and near-infrared filters. |
 
 ## Embedding in Canvas
 
 Canvas strips JavaScript from pasted HTML, so the demos are hosted here via GitHub Pages and pulled in with an iframe. In the Canvas Rich Content Editor, switch to the HTML view and add:
 
 ```html
-<iframe src="https://mjcowley.github.io/Astro_Demos/redshift-explorer/"
+<iframe src="https://mjcowley.github.io/astro_demos/redshift-explorer/"
         width="100%" height="900" style="border:1px solid #ccc;"
         title="Redshift Explorer"></iframe>
 ```
