@@ -11,6 +11,7 @@ Companion repository: [Astro_Code](https://github.com/mjcowley/Astro_Code), a co
 | Demo | Description |
 | --- | --- |
 | [Redshift Explorer](https://mjcowley.github.io/astro_demos/redshift-explorer/) | Drag a slider to redshift a template galaxy spectrum through a set of optical and near-infrared filters. |
+| [Blackbody Curve and Colour Index](https://mjcowley.github.io/astro_demos/blackbody/) | Planck curves with Wien's law, the Stefan-Boltzmann flux and a synthetic B&minus;V colour index. |
 
 ## Embedding in Canvas
 

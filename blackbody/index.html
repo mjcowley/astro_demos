@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blackbody Curve and Colour Index</title>
+<style>
+  :root{
+    --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
+    --panel:#0d1826; --panel-edge:#22354c;
+    --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e;
+    --bband:#5b8dd9; --vband:#5fbf7f;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f6f8;padding:16px 8px}
+  .app{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 18px 10px}
+  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.01em}
+  header .sub{font-size:12px;color:var(--muted)}
+  .plotwrap{background:var(--panel);border-top:1px solid var(--panel-edge);border-bottom:1px solid var(--panel-edge)}
+  svg{display:block;width:100%;height:auto}
+  .controls{padding:14px 18px 6px;display:flex;flex-wrap:wrap;gap:16px;align-items:center}
+  .tbox{font-family:var(--mono);font-size:26px;font-weight:600;min-width:150px}
+  .tbox small{font-size:12px;color:var(--muted);font-weight:400;display:block}
+  .swatch{width:42px;height:42px;border-radius:50%;border:1px solid var(--line);flex:none;
+          box-shadow:0 0 14px rgba(0,0,0,.18) inset}
+  input[type=range]{flex:1;min-width:220px;accent-color:var(--accent);height:28px}
+  .toggles{display:flex;gap:14px;flex-wrap:wrap;padding:0 18px 6px;font-size:13px;color:var(--ink)}
+  .toggles label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .readouts{display:flex;gap:24px;flex-wrap:wrap;padding:4px 18px 10px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .readouts b{color:var(--ink);font-weight:600}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  .tablewrap{padding:0 18px 14px;overflow-x:auto}
+  th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}
+  th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+  td.num{font-family:var(--mono)}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:#f2f6fa}
+  tbody tr.on{background:#e8f2f0}
+  td .dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:7px;vertical-align:-1px;border:1px solid rgba(0,0,0,.15)}
+  .hint{padding:0 18px 10px;font-size:12px;color:var(--muted)}
+  footer{padding:10px 18px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+  @media (max-width:560px){ header{flex-direction:column;gap:2px} .tbox{font-size:22px} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Blackbody Curve and Colour Index</h1>
+    <div class="sub">Change the temperature and watch Wien's law, Stefan-Boltzmann and B&minus;V respond</div>
+  </header>
+
+  <div class="plotwrap"><svg id="plot" viewBox="0 0 920 430" role="img" aria-label="Blackbody spectral radiance curve"></svg></div>
+
+  <div class="controls">
+    <div class="swatch" id="sw" title="Approximate perceived colour"></div>
+    <div class="tbox"><small>temperature</small><span id="tval">5,772</span> K</div>
+    <input id="T" type="range" min="3.176" max="4.602" step="any" value="3.76132632" aria-label="Temperature">
+  </div>
+
+  <div class="toggles">
+    <label><input id="tFilt" type="checkbox" checked> B and V bandpasses</label>
+    <label><input id="tWien" type="checkbox" checked> Wien peak marker</label>
+    <label><input id="tVis" type="checkbox" checked> Visible range</label>
+    <label><input id="tComp" type="checkbox"> Comparison curves</label>
+    <label><input id="tLog" type="checkbox"> Absolute flux (log)</label>
+  </div>
+
+  <div class="readouts">
+    <span>&lambda;<sub>max</sub> <b id="lmax">5,020 &Aring;</b></span>
+    <span>&sigma;T&#8308; <b id="sb">6.29&times;10&#8311; W m&#8315;&sup2;</b></span>
+    <span>relative to Sun <b id="rel">1.00&times;</b></span>
+    <span>B&minus;V <b id="bv">+0.47</b></span>
+    <span>class <b id="cls">G</b></span>
+  </div>
+
+  <div class="tablewrap">
+    <table aria-label="Reference objects">
+      <thead><tr><th>Object</th><th>T</th><th>&lambda;<sub>max</sub></th><th>B&minus;V (blackbody)</th><th>Class</th></tr></thead>
+      <tbody id="rtab"></tbody>
+    </table>
+  </div>
+  <div class="hint">Click any row to jump to that temperature.</div>
+
+  <footer>
+    Curves are Planck spectral radiance. B and V are Gaussian approximations to the Johnson bandpasses (4400 &Aring; and 5500 &Aring;), with the zero point set so an A0 star at 9,600 K gives B&minus;V = 0.
+    A pure blackbody is bluer than a real star of the same temperature, because line blanketing suppresses real stellar flux in B; expect the Sun to read about +0.47 here against its measured +0.65. Spectral class is therefore taken from the effective temperature rather than from the blackbody colour.
+    <br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.
+  </footer>
+</div>
+
+<script>
+"use strict";
+// ---------- physics ----------
+const Hp=6.62607015e-34, Cl=2.99792458e8, Kb=1.380649e-23, SIG=5.670374419e-8;
+const WIEN=2.897771955e7;                 // Angstrom K
+
+function planck(lA, T){                   // spectral radiance, W m^-2 m^-1 sr^-1
+  const l=lA*1e-10, x=Hp*Cl/(l*Kb*T);
+  if(x>700) return 0;
+  return (2*Hp*Cl*Cl/Math.pow(l,5))/(Math.exp(x)-1);
+}
+const BAND={B:{c:4400,fwhm:980,col:"var(--bband)"}, V:{c:5500,fwhm:880,col:"var(--vband)"}};
+function bandFlux(T,b){
+  const sig=b.fwhm/2.3548, lo=b.c-4*sig, hi=b.c+4*sig;
+  let num=0,den=0;
+  for(let i=0;i<=200;i++){
+    const l=lo+(hi-lo)*i/200, s=Math.exp(-0.5*Math.pow((l-b.c)/sig,2));
+    num+=planck(l,T)*s; den+=s;
+  }
+  return num/den;
+}
+const BV_ZP=0.4261;                       // fixes B-V = 0 at T = 9600 K
+function colourIndex(T){
+  return -2.5*Math.log10(bandFlux(T,BAND.B)/bandFlux(T,BAND.V))+BV_ZP;
+}
+function specClass(T){                     // effective-temperature sequence, not blackbody B-V
+  if(T>=30000) return "O"; if(T>=10000) return "B"; if(T>=7500) return "A";
+  if(T>=6000)  return "F"; if(T>=5200)  return "G"; if(T>=3700) return "K"; return "M";
+}
+
+// perceived colour: CIE 1931 (Wyman et al. piecewise-Gaussian fits) then sRGB
+function pg(x,mu,s1,s2){ const t=(x-mu)*(x<mu?1/s1:1/s2); return Math.exp(-0.5*t*t); }
+function cmf(nm){
+  return [ 1.056*pg(nm,599.8,37.9,31.0)+0.362*pg(nm,442.0,16.0,26.7)-0.065*pg(nm,501.1,20.4,26.2),
+           0.821*pg(nm,568.8,46.9,40.5)+0.286*pg(nm,530.9,16.3,31.1),
+           1.217*pg(nm,437.0,11.8,36.0)+0.681*pg(nm,459.0,26.0,13.8) ];
+}
+function starColour(T){
+  let X=0,Y=0,Z=0;
+  for(let nm=380;nm<=780;nm+=5){
+    const b=planck(nm*10,T), m=cmf(nm);
+    X+=b*m[0]; Y+=b*m[1]; Z+=b*m[2];
+  }
+  const s=X+Y+Z; if(s<=0) return "#000";
+  X/=s; Y/=s; Z/=s;
+  let r= 3.2406*X-1.5372*Y-0.4986*Z,
+      g=-0.9689*X+1.8758*Y+0.0415*Z,
+      b= 0.0557*X-0.2040*Y+1.0570*Z;
+  const gam=v=>{ v=Math.max(v,0); return v<=0.0031308?12.92*v:1.055*Math.pow(v,1/2.4)-0.055; };
+  r=gam(r); g=gam(g); b=gam(b);
+  const mx=Math.max(r,g,b)||1; r/=mx; g/=mx; b/=mx;   // hue only, not brightness
+  const h=v=>Math.round(Math.min(Math.max(v,0),1)*255).toString(16).padStart(2,"0");
+  return "#"+h(r)+h(g)+h(b);
+}
+
+const REFS=[
+  {name:"Cool M dwarf",   T:3000},
+  {name:"Betelgeuse (M)", T:3500},
+  {name:"Arcturus (K)",   T:4300},
+  {name:"Sun (G2)",       T:5772},
+  {name:"Procyon (F5)",   T:6530},
+  {name:"Vega (A0)",      T:9600},
+  {name:"Rigel (B8)",     T:12100},
+  {name:"Spica (B1)",     T:22400},
+];
+
+// ---------- geometry ----------
+const svg=document.getElementById("plot"), NS="http://www.w3.org/2000/svg";
+const MONO='ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace';
+const W=920,H=430, ML=58,MR=16,MT=18,MB=44;
+const LMIN=900, LMAX=30000;
+const LOGLO=8, LOGHI=18;                  // decades for the absolute-flux mode
+const xOf=l=>ML+(Math.log10(l)-Math.log10(LMIN))/(Math.log10(LMAX)-Math.log10(LMIN))*(W-ML-MR);
+const yOf=f=>MT+(1-f)*(H-MT-MB);          // f in [0,1]
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(a,s){const t=el("text",a);t.textContent=s;return t;}
+
+function frac(lA,T,logMode,peak){
+  const b=planck(lA,T);
+  if(!logMode) return Math.min(b/peak,1);
+  if(b<=0) return 0;
+  return Math.min(Math.max((Math.log10(b)-LOGLO)/(LOGHI-LOGLO),0),1);
+}
+function curvePath(T,logMode){
+  const peak=planck(WIEN/T,T);
+  const lo=Math.log10(LMIN), hi=Math.log10(LMAX);
+  let d="";
+  for(let i=0;i<=620;i++){
+    const l=Math.pow(10,lo+(hi-lo)*i/620);
+    const f=frac(l,T,logMode,peak);
+    d+=(i?"L":"M")+xOf(l).toFixed(1)+" "+yOf(f*0.94+0.02).toFixed(1)+" ";
+  }
+  return d;
+}
+
+function draw(){
+  const T=temp(), logMode=tLog.checked;
+  svg.textContent="";
+
+  // visible-light strip along the axis
+  if(tVis.checked){
+    const defs=el("defs",{}), lg=el("linearGradient",{id:"vis",x1:"0",x2:"1"});
+    const stops=[[380,"#7b2fbe"],[440,"#2b4bd8"],[490,"#1fb6c9"],[530,"#3ec46a"],[580,"#ffd93d"],[610,"#ff9a3c"],[700,"#e3454a"],[750,"#8f2226"]];
+    for(const [nm,c] of stops){
+      const p=(Math.log10(nm*10)-Math.log10(380*10))/(Math.log10(750*10)-Math.log10(380*10));
+      lg.appendChild(el("stop",{offset:(p*100).toFixed(1)+"%","stop-color":c}));
+    }
+    defs.appendChild(lg); svg.appendChild(defs);
+    const x0=xOf(3800), x1=xOf(7500);
+    svg.appendChild(el("rect",{x:x0,y:H-MB-7,width:x1-x0,height:7,fill:"url(#vis)","fill-opacity":0.85}));
+  }
+
+  // x gridlines and labels
+  for(const t of [1000,2000,3000,5000,10000,20000,30000]){
+    svg.appendChild(el("line",{x1:xOf(t),x2:xOf(t),y1:MT,y2:H-MB,stroke:"#1c2c42","stroke-width":1}));
+    svg.appendChild(txt({x:xOf(t),y:H-MB+16,fill:"#7f95b0","font-size":11,"text-anchor":"middle","font-family":MONO},
+      t>=10000?(t/10000)+"\u00b5m":t+"\u00c5"));
+  }
+  // y gridlines and labels
+  if(logMode){
+    for(let e=LOGLO;e<=LOGHI;e+=2){
+      const f=(e-LOGLO)/(LOGHI-LOGLO), y=yOf(f*0.94+0.02);
+      svg.appendChild(el("line",{x1:ML,x2:W-MR,y1:y,y2:y,stroke:"#1c2c42","stroke-width":1}));
+      svg.appendChild(txt({x:ML-8,y:y+4,fill:"#7f95b0","font-size":10,"text-anchor":"end","font-family":MONO},"1e"+e));
+    }
+  }else{
+    for(const f of [0,0.25,0.5,0.75,1]){
+      const y=yOf(f*0.94+0.02);
+      svg.appendChild(el("line",{x1:ML,x2:W-MR,y1:y,y2:y,stroke:"#1c2c42","stroke-width":1}));
+      svg.appendChild(txt({x:ML-8,y:y+4,fill:"#7f95b0","font-size":10,"text-anchor":"end","font-family":MONO},f.toFixed(2)));
+    }
+  }
+  svg.appendChild(txt({x:(ML+W-MR)/2,y:H-8,fill:"#a9bbcf","font-size":12,"text-anchor":"middle"},"Wavelength"));
+  const ym=(MT+H-MB)/2;
+  svg.appendChild(txt({x:14,y:ym,fill:"#a9bbcf","font-size":12,"text-anchor":"middle",transform:`rotate(-90 14 ${ym})`},
+    logMode?"Spectral radiance  B\u03bb  (W m\u207b\u00b2 m\u207b\u00b9 sr\u207b\u00b9)":"B\u03bb  /  peak"));
+
+  // B and V bandpasses
+  if(tFilt.checked){
+    for(const k of ["B","V"]){
+      const b=BAND[k], sig=b.fwhm/2.3548, l0=b.c-3*sig, l1=b.c+3*sig;
+      let d="";
+      for(let i=0;i<=60;i++){
+        const l=l0+(l1-l0)*i/60;
+        const h=0.20*Math.exp(-0.5*Math.pow((l-b.c)/sig,2));
+        d+=(d?"L":"M")+xOf(l).toFixed(1)+" "+yOf(h).toFixed(1)+" ";
+      }
+      d+="L"+xOf(l1).toFixed(1)+" "+yOf(0)+" L"+xOf(l0).toFixed(1)+" "+yOf(0)+" Z";
+      svg.appendChild(el("path",{d,fill:b.col,"fill-opacity":0.24,stroke:b.col,"stroke-opacity":0.6,"stroke-width":1}));
+      svg.appendChild(txt({x:xOf(b.c),y:yOf(0)-6,fill:b.col,"font-size":12,"text-anchor":"middle","font-family":MONO},k));
+    }
+  }
+
+  // comparison curves
+  if(tComp.checked){
+    for(const r of [3500,5772,9600,22400]){
+      svg.appendChild(el("path",{d:curvePath(r,logMode),fill:"none",stroke:"var(--ghost)",
+        "stroke-width":1,"stroke-dasharray":"4 4","stroke-opacity":0.55}));
+    }
+  }
+
+  // the curve
+  svg.appendChild(el("path",{d:curvePath(T,logMode),fill:"none",stroke:"var(--spec)","stroke-width":2,"stroke-linejoin":"round"}));
+
+  // Wien marker
+  if(tWien.checked){
+    const lm=WIEN/T;
+    if(lm>LMIN&&lm<LMAX){
+      const peak=planck(lm,T), x=xOf(lm), y=yOf(frac(lm,T,logMode,peak)*0.94+0.02);
+      svg.appendChild(el("line",{x1:x,x2:x,y1:y,y2:H-MB,stroke:"#e9eef4","stroke-width":1,"stroke-dasharray":"3 3","stroke-opacity":0.55}));
+      svg.appendChild(el("circle",{cx:x,cy:y,r:4,fill:"#fff","fill-opacity":0.9}));
+      svg.appendChild(txt({x:x,y:y-12,fill:"#e9eef4","font-size":11,"text-anchor":"middle","font-family":MONO},"\u03bbmax"));
+    }
+  }
+}
+
+// ---------- readouts ----------
+const Ts=document.getElementById("T");
+const temp=()=>Math.round(Math.pow(10,+Ts.value));
+const tFilt=document.getElementById("tFilt"), tWien=document.getElementById("tWien"),
+      tVis=document.getElementById("tVis"), tComp=document.getElementById("tComp"),
+      tLog=document.getElementById("tLog");
+
+function sci(v){
+  const e=Math.floor(Math.log10(v)), m=v/Math.pow(10,e);
+  return m.toFixed(2)+"\u00d710"+String(e).replace(/[0-9-]/g,c=>"\u2070\u00b9\u00b2\u00b3\u2074\u2075\u2076\u2077\u2078\u2079"[+c]||"\u207b");
+}
+function updateText(){
+  const T=temp(), bv=colourIndex(T);
+  document.getElementById("tval").textContent=T.toLocaleString();
+  document.getElementById("lmax").innerHTML=Math.round(WIEN/T).toLocaleString()+" \u00c5";
+  document.getElementById("sb").innerHTML=sci(SIG*Math.pow(T,4))+" W m\u207b\u00b2";
+  document.getElementById("rel").textContent=(Math.pow(T/5772,4)).toPrecision(3)+"\u00d7";
+  document.getElementById("bv").textContent=(bv>=0?"+":"")+bv.toFixed(2);
+  document.getElementById("cls").textContent=specClass(T);
+  document.getElementById("sw").style.background=starColour(T);
+  for(const tr of rtab.children) tr.classList.toggle("on", Math.abs(+tr.dataset.t-T)<T*0.01);
+}
+
+const rtab=document.getElementById("rtab");
+for(const r of REFS){
+  const bv=colourIndex(r.T), tr=document.createElement("tr");
+  tr.dataset.t=r.T;
+  tr.innerHTML=`<td><span class="dot" style="background:${starColour(r.T)}"></span>${r.name}</td>`+
+    `<td class="num">${r.T.toLocaleString()} K</td>`+
+    `<td class="num">${Math.round(WIEN/r.T).toLocaleString()} \u00c5</td>`+
+    `<td class="num">${bv>=0?"+":""}${bv.toFixed(2)}</td>`+
+    `<td>${specClass(r.T)}</td>`;
+  tr.addEventListener("click",()=>{ Ts.value=Math.log10(r.T); render(); });
+  rtab.appendChild(tr);
+}
+
+function render(){ draw(); updateText(); }
+for(const c of [Ts,tFilt,tWien,tVis,tComp,tLog]) c.addEventListener("input",render);
+render();
+</script>
+</body>
+</html>
