@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Light Clock and Time Dilation</title>
+<style>
+  :root{
+    --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
+    --panel:#0d1826; --panel-edge:#22354c;
+    --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f6f8;padding:16px 8px}
+  .app{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  body.big .app{max-width:1240px} body.big .zoomable{zoom:1.25}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 18px 10px}
+  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.01em}
+  header .sub{font-size:12px;color:var(--muted)}
+  .plotwrap{background:var(--panel);border-top:1px solid var(--panel-edge);border-bottom:1px solid var(--panel-edge)}
+  svg{display:block;width:100%;height:auto}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:12px 18px 2px;font-size:13px}
+  .presets .lbl{color:var(--muted);margin-right:2px}
+  .pill{font:inherit;font-size:12.5px;padding:5px 11px;border:1px solid var(--line);background:#fff;border-radius:99px;cursor:pointer;color:var(--ink)}
+  .pill:hover{border-color:var(--accent)}
+  .pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .controls{padding:8px 18px 4px;display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center}
+  .btn{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:6px;cursor:pointer;min-width:84px}
+  .btn.ghost{background:#fff;color:var(--accent)}
+  .vbox{font-family:var(--mono);font-size:22px;font-weight:600;min-width:170px}
+  .vbox small{font-size:12px;color:var(--muted);font-weight:400;display:block}
+  input[type=range]{flex:1;min-width:220px;accent-color:var(--accent);height:28px}
+  .readouts{display:flex;gap:10px 24px;flex-wrap:wrap;padding:4px 18px 10px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .readouts b{color:var(--ink);font-weight:600}
+  .note{margin:2px 18px 12px;padding:10px 14px;border-left:4px solid var(--accent);background:#f2f6fa;border-radius:0 6px 6px 0;font-size:13.5px;line-height:1.55}
+  h2{font-size:14px;margin:14px 18px 6px;font-weight:650}
+  .calc{margin:0 18px 12px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;display:grid;grid-template-columns:auto 1fr;gap:8px 14px;align-items:center;font-size:13.5px}
+  .calc input[type=number]{font:inherit;font-family:var(--mono);font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;width:180px}
+  .calc select{font:inherit;font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:#fff}
+  .eq{grid-column:1/-1;font-family:var(--mono);font-size:13px;line-height:1.7;background:#f2f6fa;border-radius:6px;padding:8px 12px;white-space:pre;overflow-x:auto}
+  .hint{padding:0 18px 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  footer{padding:10px 18px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+  @media (max-width:560px){ header{flex-direction:column;gap:2px} .vbox{font-size:18px;min-width:0} .calc{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>The Light Clock and Time Dilation</h1>
+    <div class="sub">Why a moving clock has to tick more slowly when the speed of light is the same for everyone</div>
+  </header>
+
+  <div class="plotwrap"><svg id="plot" viewBox="0 0 920 470" role="img" aria-label="A light clock at rest and a moving light clock, with the light-path triangle"></svg></div>
+
+  <div class="zoomable">
+  <div class="controls">
+    <button class="btn" id="play">&#10074;&#10074; Pause</button>
+    <button class="btn ghost" id="reset">Reset clocks</button>
+    <div class="vbox"><small>speed of the moving clock</small><span id="vv">0.60</span> c</div>
+    <input id="v" type="range" min="0" max="0.995" step="0.005" aria-label="Speed as a fraction of c">
+  </div>
+  <div class="presets"><label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input id="tBig" type="checkbox"> Projector mode (larger text)</label></div>
+
+  <div class="readouts" id="readouts"></div>
+  <div class="note" id="note"></div>
+
+  <h2>Time dilation calculator</h2>
+  <div class="presets" id="examples" style="padding-top:0"><span class="lbl">Example:</span></div>
+  <div class="calc">
+    <label for="t0">Proper time t₀ (on the moving clock)</label><span><input id="t0" type="number" min="0" step="any" value="1"> seconds</span>
+    <label for="sp">Speed v</label><span><input id="sp" type="number" min="0" step="any" value="0.6">
+      <select id="unit" aria-label="Speed units"><option value="c">× c</option><option value="ms">m/s</option><option value="kmh">km/h</option></select></span>
+    <div class="eq" id="eq"></div>
+  </div>
+
+  <div class="hint">
+    <b>The argument:</b> a light clock ticks each time a pulse of light bounces between two mirrors. To Steve, standing still, the light in Michelle's moving clock has to travel along a slanted path, which is longer than the straight up-and-down path. Light moves at the same speed c for everyone (the second postulate), so a longer path takes longer: each tick of the moving clock takes more time.
+    The triangle on the right gives the formula: (ct)&sup2; = (vt)&sup2; + (ct&#8320;)&sup2;, which rearranges to <b>t = t&#8320; / &radic;(1 &minus; v&sup2;/c&sup2;) = &gamma;t&#8320;</b>. Michelle, riding with her clock, sees nothing strange: her clock ticks normally for her. The time t&#8320; measured by a clock moving with the event is the <i>proper time</i>.
+  </div>
+
+  <footer>
+    The animation shows everything from Steve's frame, with light slowed right down so you can follow it. The calculator uses c = 299,792,458 m/s and, for everyday speeds, computes the tiny difference t &minus; t&#8320; directly so it isn't lost to rounding.
+    <br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.
+  </footer>
+  </div>
+</div>
+
+<script>
+"use strict";
+const C=299792458;
+const EXAMPLES=[
+  {name:"Supersonic plane (workbook Q1)", t0:1, v:1235, u:"kmh"},
+  {name:"Spaceship at 0.5c (workbook Q2)", t0:1, v:0.5, u:"c"},
+  {name:"Volunteer in the chair", t0:2, v:2, u:"ms"},
+  {name:"GPS satellite, one day", t0:86400, v:14000, u:"kmh"},
+  {name:"Proton in the LHC", t0:1, v:0.99999999, u:"c"},
+];
+const vS=document.getElementById("v"), t0I=document.getElementById("t0"), spI=document.getElementById("sp"), unitS=document.getElementById("unit");
+const beta=()=>+vS.value;
+const gammaOf=b=>1/Math.sqrt(1-b*b);
+const gm1=b=>Math.expm1(-0.5*Math.log1p(-b*b));     // gamma - 1, accurate for tiny speeds
+
+// ---------- animation state (Steve's frame) ----------
+const L=150, CPX=170;                                 // mirror gap (px) and the slowed-down speed of light (px/s)
+let tS=0, playing=true, last=performance.now(), trail=[];
+
+// ---------- drawing ----------
+const svg=document.getElementById("plot"), NS="http://www.w3.org/2000/svg";
+const MONO='ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace';
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(a,s){const t=el("text",a);t.textContent=s;return t;}
+const R={x:70,y:80}, M={x0:200,x1:600,y:80}, T={x0:640,x1:900,y0:60,y1:400};
+let gDyn=null;
+
+function clock(g,x,y,lit){
+  g.appendChild(el("rect",{x:x-34,y:y-8,width:68,height:8,rx:2,fill:"#c3d2e2"}));
+  g.appendChild(el("rect",{x:x-34,y:y+L,width:68,height:8,rx:2,fill:"#c3d2e2"}));
+  g.appendChild(el("line",{x1:x-30,x2:x-30,y1:y,y2:y+L,stroke:"#3d5675"}));
+  g.appendChild(el("line",{x1:x+30,x2:x+30,y1:y,y2:y+L,stroke:"#3d5675"}));
+  if(lit) g.appendChild(el("rect",{x:x-34,y:y+L,width:68,height:8,rx:2,fill:"#ffd166"}));
+}
+function drawStatic(){
+  const b=beta(), g=gammaOf(b);
+  svg.textContent="";
+  svg.appendChild(txt({x:R.x,y:30,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Clock next to Steve"));
+  svg.appendChild(txt({x:R.x,y:46,fill:"#7f95b0","font-size":10.5,"text-anchor":"middle","font-family":MONO},"(at rest)"));
+  svg.appendChild(txt({x:(M.x0+M.x1)/2,y:30,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Michelle's clock, as Steve sees it"));
+  svg.appendChild(txt({x:(M.x0+M.x1)/2,y:46,fill:"#7f95b0","font-size":10.5,"text-anchor":"middle","font-family":MONO},"(moving right at "+b.toFixed(2)+"c; the camera follows it)"));
+  svg.appendChild(el("line",{x1:140,x2:140,y1:20,y2:440,stroke:"#1c2c42"}));
+  svg.appendChild(el("line",{x1:620,x2:620,y1:20,y2:440,stroke:"#1c2c42"}));
+  // triangle for one half-tick, scaled to fit
+  svg.appendChild(txt({x:(T.x0+T.x1)/2,y:30,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"One half-tick, as Steve sees it"));
+  const h=L, base=b*g*L, hyp=g*L, sc=Math.min(1,(T.x1-T.x0-50)/Math.max(base,1),(T.y1-T.y0-60)/h);
+  const ax=T.x0+20, ay=T.y0+30+h*sc*0.0, bx=ax+base*sc, by=ay+h*sc;
+  svg.appendChild(el("path",{d:`M${ax} ${ay}L${ax} ${by}L${bx} ${by}Z`,fill:"#ffd166","fill-opacity":0.08,stroke:"none"}));
+  svg.appendChild(el("line",{x1:ax,y1:ay,x2:bx,y2:by,stroke:"#ffd166","stroke-width":2.4}));
+  svg.appendChild(el("line",{x1:ax,y1:ay,x2:ax,y2:by,stroke:"#4cc9f0","stroke-width":2.4}));
+  svg.appendChild(el("line",{x1:ax,y1:by,x2:bx,y2:by,stroke:"#f4a261","stroke-width":2.4}));
+  svg.appendChild(el("path",{d:`M${ax} ${by-10}h10v10`,fill:"none",stroke:"#7f95b0"}));
+  svg.appendChild(txt({x:ax-6,y:(ay+by)/2,fill:"#4cc9f0","font-size":13,"text-anchor":"end","font-family":MONO},"ct₀"));
+  if(base*sc>30) svg.appendChild(txt({x:(ax+bx)/2,y:by+18,fill:"#f4a261","font-size":13,"text-anchor":"middle","font-family":MONO},"vt"));
+  const mx=(ax+bx)/2, my=(ay+by)/2;
+  svg.appendChild(txt({x:mx+10,y:my-6,fill:"#ffd166","font-size":13,"font-family":MONO},"ct"));
+  const ty=Math.max(by+50,T.y0+250);
+  const lines=["(ct)² = (vt)² + (ct₀)²","t = t₀ / √(1 − v²/c²)","γ = "+(g<1000?g.toFixed(4):g.toFixed(0)),
+    "path is "+(g<100?g.toFixed(3):g.toFixed(0))+"× longer"];
+  lines.forEach((s,i)=>svg.appendChild(txt({x:T.x0+10,y:ty+i*24,fill:i===2?"#ffd166":"#e9eef4","font-size":13,"font-family":MONO},s)));
+  gDyn=el("g",{}); svg.appendChild(gDyn);
+}
+function drawDyn(){
+  const b=beta(), g=gammaOf(b);
+  gDyn.textContent="";
+  // rest clock: half tick takes L / c
+  const half0=L/CPX, ph0=tS/half0, k0=Math.floor(ph0), f0=ph0-k0, y0=k0%2===0?R.y+f0*L:R.y+L-f0*L;
+  clock(gDyn,R.x,R.y,false);
+  gDyn.appendChild(el("line",{x1:R.x,x2:R.x,y1:R.y,y2:R.y+L,stroke:"#ffd166","stroke-opacity":0.25,"stroke-dasharray":"3 4"}));
+  gDyn.appendChild(el("circle",{cx:R.x,cy:y0,r:6,fill:"#ffd166"}));
+  // moving clock: half tick takes gamma L / c, clock moves at b c
+  // the camera follows the moving clock: the ground and the light's trail slide past behind it
+  const half=g*L/CPX, ph=tS/half, k=Math.floor(ph), f=ph-k, world=b*CPX*tS;
+  const xc=M.x1-70, y=k%2===0?M.y+f*L:M.y+L-f*L;
+  trail.push([world,y]);
+  while(trail.length&&xc-(world-trail[0][0])<M.x0) trail.shift();
+  for(let gx=-((world)%50); gx<M.x1-M.x0; gx+=50) gDyn.appendChild(el("line",{x1:M.x1-gx,x2:M.x1-gx-14,y1:M.y+L+22,y2:M.y+L+22,stroke:"#3d5675","stroke-width":3}));
+  let d=""; trail.forEach(([w,yy],i)=>d+=(i?"L":"M")+(xc-(world-w)).toFixed(1)+" "+yy.toFixed(1));
+  gDyn.appendChild(el("path",{d,fill:"none",stroke:"#ffd166","stroke-width":1.8,"stroke-opacity":0.65}));
+  clock(gDyn,xc,M.y,false);
+  gDyn.appendChild(el("circle",{cx:xc,cy:y,r:6,fill:"#ffd166"}));
+  // tick counters: a tick is one round trip
+  const n0=Math.floor(ph0/2), n=Math.floor(ph/2);
+  const box=(x,label,count,sub)=>{ gDyn.appendChild(txt({x,y:M.y+L+52,fill:"#e9eef4","font-size":13,"text-anchor":"middle"},label));
+    gDyn.appendChild(txt({x,y:M.y+L+84,fill:"#ffd166","font-size":30,"font-weight":650,"text-anchor":"middle","font-family":MONO},count));
+    gDyn.appendChild(txt({x,y:M.y+L+104,fill:"#7f95b0","font-size":10.5,"text-anchor":"middle","font-family":MONO},sub)); };
+  box(R.x,"Steve's clock",n0,"ticks");
+  box((M.x0+M.x1)/2,"Michelle's clock",n,"ticks (Michelle's proper time)");
+  gDyn.appendChild(txt({x:(M.x0+M.x1)/2,y:M.y+L+132,fill:"#a9bbcf","font-size":11.5,"text-anchor":"middle"},n0>2?"Michelle's clock has ticked "+(n0?(100*n/n0).toFixed(0):"–")+"% as often as Steve's":"watch the counters"));
+}
+
+// ---------- readouts and calculator ----------
+const SUP=n=>String(n).replace(/[0-9-]/g,c=>"⁰¹²³⁴⁵⁶⁷⁸⁹"[+c]||"⁻");
+function sci(v,p=3){ if(v===0) return "0"; const e=Math.floor(Math.log10(Math.abs(v))); if(e>=-3&&e<6) return String(+v.toPrecision(p)); return (v/10**e).toFixed(p-1)+"×10"+SUP(e); }
+function update(){
+  const b=beta(), g=gammaOf(b);
+  document.getElementById("vv").textContent=b.toFixed(b>0.99?3:2);
+  document.getElementById("readouts").innerHTML=`<span>Lorentz factor γ <b>${g.toFixed(4)}</b></span><span>moving clock ticks at <b>${(100/g).toFixed(1)}%</b> of the rate of Steve's</span><span>1 s for Michelle = <b>${g.toFixed(3)} s</b> for Steve</span>`;
+  document.getElementById("note").textContent=b<0.05
+    ?"At everyday speeds the slanted path is almost exactly as long as the straight one, so the two clocks agree to many decimal places. Push the speed up."
+    :b<0.5?`At ${b.toFixed(2)}c the light's path is only slightly longer, so the moving clock runs about ${((g-1)*100).toFixed(1)}% slow.`
+    :b<0.95?`At ${b.toFixed(2)}c the slanted path is ${g.toFixed(2)} times as long, so Michelle's clock ticks only ${(100/g).toFixed(0)}% as fast as Steve's, as Steve sees it.`
+    :`Close to the speed of light the path becomes very long and the moving clock almost stops, as seen by Steve. Michelle notices nothing: for her, her clock is the one at rest.`;
+}
+function calc(){
+  const t0=Math.max(+t0I.value||0,0), raw=Math.max(+spI.value||0,0), u=unitS.value;
+  let b=u==="c"?raw:u==="ms"?raw/C:raw/3.6/C;
+  const eq=document.getElementById("eq");
+  if(b>=1){ eq.textContent="Nothing with mass can reach the speed of light: v must be less than c."; return; }
+  const vMs=b*C, g1=gm1(b), g=1+g1, dt=t0*g1;
+  const vTxt=u==="c"?raw+"c":sci(vMs,4)+" m/s";
+  eq.textContent=
+    "t = t₀ × 1/√(1 − v²/c²)\n"+
+    "  = "+t0+" s × 1/√(1 − ("+vTxt+")²/c²)"+(u==="c"?"":"     (v = "+sci(vMs,4)+" m/s, c = 299,792,458 m/s)")+"\n"+
+    "  = "+(g1>1e-6?(t0*g).toPrecision(8)+" s":t0+" s + "+sci(dt)+" s")+"\n"+
+    "γ = "+(g1>1e-9?g.toPrecision(10):"1 + "+sci(g1))+"     so the moving clock loses "+sci(dt)+" s compared with the observer's";
+}
+
+// ---------- controls ----------
+const eb=document.getElementById("examples");
+for(const e of EXAMPLES){ const b=document.createElement("button"); b.className="pill"; b.textContent=e.name;
+  b.addEventListener("click",()=>{ t0I.value=e.t0; spI.value=e.v; unitS.value=e.u; calc(); for(const x of eb.querySelectorAll(".pill")) x.classList.toggle("on",x===b); }); eb.appendChild(b); }
+for(const c of [t0I,spI,unitS]) c.addEventListener("input",()=>{ for(const x of eb.querySelectorAll(".pill")) x.classList.remove("on"); calc(); });
+vS.addEventListener("input",()=>{ trail=[]; tS=0; drawStatic(); drawDyn(); update(); });
+document.getElementById("reset").addEventListener("click",()=>{ trail=[]; tS=0; drawDyn(); });
+document.getElementById("tBig").addEventListener("input",e=>document.body.classList.toggle("big",e.target.checked));
+const playBtn=document.getElementById("play");
+playBtn.addEventListener("click",()=>{ playing=!playing; playBtn.innerHTML=playing?"&#10074;&#10074; Pause":"&#9654; Play"; });
+function frame(now){ const dt=Math.min((now-last)/1000,0.1); last=now; if(playing){ tS+=dt; drawDyn(); } requestAnimationFrame(frame); }
+
+vS.value=0.6;
+drawStatic(); drawDyn(); update();
+eb.querySelectorAll(".pill")[0].click();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

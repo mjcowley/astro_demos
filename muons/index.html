@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Muons, Time Dilation and Length Contraction</title>
+<style>
+  :root{
+    --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
+    --panel:#0d1826; --panel-edge:#22354c;
+    --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e; --mu:#4cc9f0; --dead:#e07a5f;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f6f8;padding:16px 8px}
+  .app{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  body.big .app{max-width:1240px} body.big .zoomable{zoom:1.25}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 18px 10px}
+  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.01em}
+  header .sub{font-size:12px;color:var(--muted)}
+  .plotwrap{background:var(--panel);border-top:1px solid var(--panel-edge);border-bottom:1px solid var(--panel-edge)}
+  svg{display:block;width:100%;height:auto}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:12px 18px 2px;font-size:13px}
+  .presets .lbl{color:var(--muted);min-width:92px}
+  .pill{font:inherit;font-size:12.5px;padding:5px 11px;border:1px solid var(--line);background:#fff;border-radius:99px;cursor:pointer;color:var(--ink)}
+  .pill:hover{border-color:var(--accent)}
+  .pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .controls{padding:8px 18px 4px;display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center}
+  .btn{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:6px;cursor:pointer;min-width:84px}
+  .sliders{padding:6px 18px 4px;display:grid;grid-template-columns:170px 1fr 170px;gap:2px 14px;align-items:center;font-size:13px}
+  .sliders .v{font-family:var(--mono);font-size:12.5px}
+  input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+  .toggles{display:flex;gap:14px;flex-wrap:wrap;padding:4px 18px 6px;font-size:13px;color:var(--ink)}
+  .toggles label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .readouts{display:flex;gap:10px 24px;flex-wrap:wrap;padding:4px 18px 10px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .readouts b{color:var(--ink);font-weight:600}
+  .note{margin:2px 18px 12px;padding:10px 14px;border-left:4px solid var(--accent);background:#f2f6fa;border-radius:0 6px 6px 0;font-size:13.5px;line-height:1.55}
+  .eq{margin:0 18px 12px;font-family:var(--mono);font-size:12.5px;line-height:1.7;background:#f2f6fa;border-radius:6px;padding:8px 12px;white-space:pre;overflow-x:auto}
+  .hint{padding:0 18px 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  footer{padding:10px 18px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+  @media (max-width:600px){
+    header{flex-direction:column;gap:2px}
+    .sliders{grid-template-columns:1fr 140px} .sliders .lab{grid-column:1/-1;margin-top:4px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Muons, Time Dilation and Length Contraction</h1>
+    <div class="sub">Short-lived particles from cosmic rays shouldn't reach the ground, yet they do. Relativity explains why, in two ways</div>
+  </header>
+
+  <div class="plotwrap"><svg id="plot" viewBox="0 0 920 470" role="img" aria-label="Muons falling through the atmosphere with and without relativity"></svg></div>
+
+  <div class="zoomable">
+  <div class="presets" id="ex"><span class="lbl">Example:</span></div>
+  <div class="presets" id="views"><span class="lbl">Explain it as:</span></div>
+
+  <div class="controls">
+    <button class="btn" id="play">&#9654; Release muons</button>
+  </div>
+  <div class="sliders">
+    <span class="lab">Muon speed</span><input id="sp" type="range" min="0.7" max="4" step="any" aria-label="Muon speed"><span class="v" id="spv"></span>
+    <span class="lab">Height they start at</span><input id="h" type="range" min="1" max="20" step="0.1" aria-label="Starting height"><span class="v" id="hv"></span>
+  </div>
+  <div class="toggles"><label><input id="tBig" type="checkbox"> Projector mode (larger text)</label></div>
+
+  <div class="readouts" id="readouts"></div>
+  <div class="note" id="note"></div>
+  <div class="eq" id="eq"></div>
+
+  <div class="hint">
+    <b>The puzzle:</b> cosmic rays hitting the upper atmosphere make muons, unstable particles that decay with a half-life of about 1.5 μs (mean lifetime 2.2 μs). Even at almost the speed of light, a muon could only travel about 660 m in 2.2 μs, so hardly any should survive the trip from 15 km up. Yet we detect lots of them at the ground.
+    <b>Earth's explanation:</b> the muons are moving so fast that their internal clocks run slow (time dilation), so far fewer half-lives pass during the trip.
+    <b>The muon's explanation:</b> from the muon's point of view it's at rest and the Earth rushes towards it, with the atmosphere squashed to a fraction of its thickness (length contraction), so the trip is short. Both give exactly the same number of survivors.
+  </div>
+
+  <footer>
+    Each dot is a muon given a random lifetime drawn from the decay law with mean 2.197 μs. Counts at the ground are this random sample; the percentages in the readouts are the exact expected values. Real muons are produced over a range of heights and speeds, and some are absorbed; the Frisch &amp; Smith (1963) experiment measured muons on Mount Washington (1907 m) and at sea level, selecting those with speeds near 0.995c.
+    <br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.
+  </footer>
+  </div>
+</div>
+
+<script>
+"use strict";
+const C=299792458, TAU=2.197e-6, HALF=TAU*Math.LN2;
+const EXAMPLES=[
+  {name:"Typical cosmic-ray muon", b:0.998, h:15},
+  {name:"Slower muon (0.95c)", b:0.95, h:15},
+  {name:"Frisch & Smith (1963)", b:0.9952, h:1.907},
+];
+const VIEWS=[["earth","Earth's view: time dilation"],["muon","The muon's view: length contraction"]];
+let view="earth", p=0, playing=false, last=0;
+const spS=document.getElementById("sp"), hS=document.getElementById("h");
+const beta=()=>1-Math.pow(10,-(+spS.value)), H=()=>+hS.value*1000;
+const gam=()=>1/Math.sqrt(1-beta()**2);
+
+// muons with random proper lifetimes (fixed seed so runs are repeatable)
+const N=160;
+const MU=(()=>{ let s=1963; const r=()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; };
+  return Array.from({length:N},()=>({life:-TAU*Math.log(1-r()), x:r(), jit:r()})); })();
+
+// ---------- drawing ----------
+const svg=document.getElementById("plot"), NS="http://www.w3.org/2000/svg";
+const MONO='ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace';
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(a,s){const t=el("text",a);t.textContent=s;return t;}
+const TOP=78, GROUND=400, COLS=[{x0:40,x1:290},{x0:340,x1:590}], BX0=650, BX1=900;
+
+function column(c,title,sub,height,elapsedProper,legend,muonFrame){
+  // height: fraction of the drawing the atmosphere occupies (1 = full height; 1/γ when contracted)
+  // muonFrame: muons stay still and the contracted atmosphere and ground rush up past them
+  const full=GROUND-TOP, thick=full*height;
+  const groundY=muonFrame?TOP+thick*(1-p):GROUND, top=groundY-thick;
+  svg.appendChild(txt({x:(c.x0+c.x1)/2,y:24,fill:"#e9eef4","font-size":13,"text-anchor":"middle","font-weight":600},title));
+  svg.appendChild(txt({x:(c.x0+c.x1)/2,y:42,fill:"#a9bbcf","font-size":10.5,"text-anchor":"middle","font-family":MONO},sub));
+  const sky=el("linearGradient",{id:"sky"+c.x0,x1:"0",y1:"0",x2:"0",y2:"1"});
+  sky.appendChild(el("stop",{offset:"0","stop-color":"#13233a"})); sky.appendChild(el("stop",{offset:"1","stop-color":"#1d3a5c"}));
+  const defs=el("defs",{}); defs.appendChild(sky); svg.appendChild(defs);
+  svg.appendChild(el("rect",{x:c.x0,y:top,width:c.x1-c.x0,height:thick,fill:`url(#sky${c.x0})`}));
+  svg.appendChild(el("rect",{x:c.x0,y:groundY,width:c.x1-c.x0,height:GROUND+14-groundY,fill:"#1b3326"}));
+  svg.appendChild(el("rect",{x:c.x0,y:groundY,width:c.x1-c.x0,height:14,fill:"#2f6b4a"}));
+  if(muonFrame&&GROUND-groundY>60) svg.appendChild(txt({x:(c.x0+c.x1)/2,y:(groundY+GROUND)/2+30,fill:"#4f7d61","font-size":12,"text-anchor":"middle"},"the Earth"));
+  svg.appendChild(el("line",{x1:c.x0-6,x2:c.x0-6,y1:top,y2:groundY,stroke:"#7f95b0"}));
+  svg.appendChild(txt({x:c.x0-10,y:top+4,fill:"#a9bbcf","font-size":10.5,"text-anchor":"end","font-family":MONO,transform:`rotate(-90 ${c.x0-10} ${top+4})`},legend));
+  if(muonFrame) svg.appendChild(txt({x:(c.x0+c.x1)/2,y:Math.min(groundY+30,GROUND+34),fill:"#9fe0b4","font-size":10.5,"text-anchor":"middle","font-family":MONO},p<1?"↑ the ground rushes up":""));
+  let alive=0;
+  const total=elapsedProper/Math.max(p,1e-9);              // proper time for the whole trip
+  for(const m of MU){
+    const x=c.x0+8+(c.x1-c.x0-16)*m.x, dead=elapsedProper>m.life;
+    const fDie=Math.min(m.life/total,1);                    // fraction of the trip at which it decays
+    // height above the ground where it is (or decayed), as a fraction of the atmosphere
+    const yAt=f=>muonFrame?TOP:GROUND-(1-f)*thick;
+    if(dead) svg.appendChild(el("circle",{cx:x,cy:muonFrame?TOP+(m.jit-0.5)*6:yAt(fDie),r:2.2,fill:"var(--dead)","fill-opacity":0.55}));
+    else{ svg.appendChild(el("circle",{cx:x,cy:muonFrame?TOP+(m.jit-0.5)*6:yAt(p),r:3.2,fill:"var(--mu)"})); alive++; }
+  }
+  return alive;
+}
+function draw(){
+  const b=beta(), g=gam(), h=H(), t=h/(b*C), tp=t/g;
+  svg.textContent="";
+  // left: no relativity. Muon clock runs at Earth rate; decays by elapsed time p * t
+  const leftAlive=column(COLS[0],"Without relativity","muon clocks tick at the normal rate",1,p*t,(h/1000).toFixed(h<10000?1:0)+" km");
+  // right: with relativity, either Earth's view (dilated clocks, full height) or the muon's view (contracted height)
+  const right=view==="earth"
+    ?column(COLS[1],"With relativity: Earth's view","muon clocks run "+g.toFixed(1)+"× slow",1,p*tp,(h/1000).toFixed(h<10000?1:0)+" km")
+    :column(COLS[1],"With relativity: the muon's view","atmosphere contracted "+g.toFixed(1)+"×",Math.max(1/g,0.02),p*tp,(h/g)>=1000?(h/g/1000).toFixed(2)+" km":Math.round(h/g)+" m",true);
+  // survivors bar chart
+  const pc=Math.exp(-t/TAU), pr=Math.exp(-tp/TAU);
+  svg.appendChild(txt({x:(BX0+BX1)/2,y:24,fill:"#e9eef4","font-size":13,"text-anchor":"middle","font-weight":600},"Expected to reach the ground"));
+  const bars=[["without relativity",pc,"var(--dead)"],["with relativity",pr,"var(--mu)"]];
+  bars.forEach(([lab,f,col],i)=>{ const x=BX0+20+i*120, hh=(GROUND-TOP)*f;
+    svg.appendChild(el("rect",{x,y:GROUND-hh,width:80,height:Math.max(hh,1),fill:col,rx:3}));
+    svg.appendChild(txt({x:x+40,y:GROUND-hh-8,fill:"#e9eef4","font-size":14,"font-weight":650,"text-anchor":"middle","font-family":MONO},pct(f)));
+    svg.appendChild(txt({x:x+40,y:GROUND+30,fill:"#a9bbcf","font-size":11,"text-anchor":"middle"},lab)); });
+  svg.appendChild(el("line",{x1:BX0,x2:BX1,y1:GROUND,y2:GROUND,stroke:"#3d5675"}));
+  // live counts
+  svg.appendChild(txt({x:(COLS[0].x0+COLS[0].x1)/2,y:GROUND+34,fill:"#ffb4a2","font-size":12,"text-anchor":"middle","font-family":MONO},leftAlive+" of "+N+" still alive"));
+  svg.appendChild(txt({x:(COLS[1].x0+COLS[1].x1)/2,y:GROUND+34,fill:"#9fe3f7","font-size":12,"text-anchor":"middle","font-family":MONO},right+" of "+N+" still alive"));
+  svg.appendChild(txt({x:(COLS[0].x1+COLS[1].x0)/2,y:GROUND+54,fill:"#7f95b0","font-size":10.5,"text-anchor":"middle","font-family":MONO},p<1?"trip "+Math.round(p*100)+"% complete":"arrived at the ground"));
+  update();
+}
+
+// ---------- readouts ----------
+const SUP=n=>String(n).replace(/[0-9-]/g,c=>"⁰¹²³⁴⁵⁶⁷⁸⁹"[+c]||"⁻");
+function pct(f){ const v=100*f; if(v>=0.01) return (v<1?v.toFixed(2):v<10?v.toFixed(1):v.toFixed(0))+"%"; if(v===0) return "0%"; const e=Math.floor(Math.log10(v)); return (v/10**e).toFixed(1)+"×10"+SUP(e)+"%"; }
+function update(){
+  const b=beta(), g=gam(), h=H(), t=h/(b*C), tp=t/g, pc=Math.exp(-t/TAU), pr=Math.exp(-tp/TAU);
+  document.getElementById("spv").textContent=(b>=0.9995?b.toFixed(5):b.toFixed(4))+"c";
+  document.getElementById("hv").textContent=(+hS.value).toFixed(1)+" km";
+  document.getElementById("readouts").innerHTML=
+    `<span>γ <b>${g.toFixed(2)}</b></span><span>trip time (Earth clocks) <b>${(t*1e6).toFixed(2)} μs</b></span>`+
+    `<span>trip time (muon's clock) <b>${(tp*1e6).toFixed(2)} μs</b></span><span>atmosphere for the muon <b>${h/g>=1000?(h/g/1000).toFixed(2)+" km":Math.round(h/g)+" m"}</b></span>`+
+    `<span>half-lives that pass <b>${(t/HALF).toFixed(1)} → ${(tp/HALF).toFixed(2)}</b></span>`;
+  document.getElementById("note").textContent=view==="earth"
+    ?`From the ground, the trip takes ${(t*1e6).toFixed(1)} μs, about ${(t/HALF).toFixed(0)} half-lives, so without relativity only ${pct(pc)} would survive. But the muons' clocks run ${g.toFixed(1)} times slow, so only ${(tp*1e6).toFixed(2)} μs passes for them and ${pct(pr)} arrive.`
+    :`For the muon, it's the Earth that moves. The ${(h/1000).toFixed(1)} km of atmosphere is contracted to ${h/g>=1000?(h/g/1000).toFixed(2)+" km":Math.round(h/g)+" m"}, which rushes past in just ${(tp*1e6).toFixed(2)} μs of the muon's own time. Same answer: ${pct(pr)} survive.`;
+  document.getElementById("eq").textContent=
+    "Earth:  t = h / v = "+(t*1e6).toFixed(2)+" μs,   muon's time t₀ = t / γ = "+(t*1e6).toFixed(2)+" / "+g.toFixed(2)+" = "+(tp*1e6).toFixed(2)+" μs\n"+
+    "Muon:   L = L₀ / γ = "+(h/1000).toFixed(2)+" km / "+g.toFixed(2)+" = "+(h/g/1000).toFixed(3)+" km,   time = L / v = "+(tp*1e6).toFixed(2)+" μs\n"+
+    "Survivors = e^(−t₀/τ) = e^(−"+(tp*1e6).toFixed(2)+" / 2.197) = "+pct(pr)+"   (without relativity: e^(−"+(t*1e6).toFixed(2)+" / 2.197) = "+pct(pc)+")";
+  for(const b2 of document.querySelectorAll("#views .pill")) b2.classList.toggle("on",b2.dataset.k===view);
+  for(const b2 of document.querySelectorAll("#ex .pill")){ const e=EXAMPLES[+b2.dataset.i]; b2.classList.toggle("on",Math.abs(e.b-beta())<2e-5&&Math.abs(e.h*1000-H())<60); }
+}
+
+// ---------- controls ----------
+const eb=document.getElementById("ex");
+EXAMPLES.forEach((e,i)=>{ const b=document.createElement("button"); b.className="pill"; b.textContent=e.name; b.dataset.i=i;
+  b.addEventListener("click",()=>{ spS.value=-Math.log10(1-e.b); hS.value=e.h; p=0; draw(); }); eb.appendChild(b); });
+const vb=document.getElementById("views");
+for(const [k,n] of VIEWS){ const b=document.createElement("button"); b.className="pill"; b.textContent=n; b.dataset.k=k;
+  b.addEventListener("click",()=>{ view=k; draw(); }); vb.appendChild(b); }
+for(const c of [spS,hS]) c.addEventListener("input",()=>{ p=0; draw(); });
+document.getElementById("tBig").addEventListener("input",e=>document.body.classList.toggle("big",e.target.checked));
+const playBtn=document.getElementById("play");
+function tick(now){ if(!playing) return; const dt=Math.min((now-last)/1000,0.1); last=now;
+  p=Math.min(p+dt/5,1); draw(); if(p>=1){ playing=false; playBtn.innerHTML="&#9654; Release muons"; return; } requestAnimationFrame(tick); }
+playBtn.addEventListener("click",()=>{ if(playing) return; p=0; playing=true; playBtn.innerHTML="Falling…"; last=performance.now(); requestAnimationFrame(tick); });
+
+spS.value=-Math.log10(1-0.998); hS.value=15; p=1;
+draw();
+</script>
+</body>
+</html>

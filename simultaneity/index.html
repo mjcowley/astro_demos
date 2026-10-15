@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relativity of Simultaneity</title>
+<style>
+  :root{
+    --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
+    --panel:#0d1826; --panel-edge:#22354c;
+    --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e; --fa:#4cc9f0; --fb:#f4a261;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f6f8;padding:16px 8px}
+  .app{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  body.big .app{max-width:1240px} body.big .zoomable{zoom:1.25}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 18px 10px}
+  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.01em}
+  header .sub{font-size:12px;color:var(--muted)}
+  .plotwrap{background:var(--panel);border-top:1px solid var(--panel-edge);border-bottom:1px solid var(--panel-edge)}
+  svg{display:block;width:100%;height:auto}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:12px 18px 2px;font-size:13px}
+  .presets .lbl{color:var(--muted);min-width:92px}
+  .pill{font:inherit;font-size:12.5px;padding:5px 11px;border:1px solid var(--line);background:#fff;border-radius:99px;cursor:pointer;color:var(--ink)}
+  .pill:hover{border-color:var(--accent)}
+  .pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .controls{padding:8px 18px 4px;display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center}
+  .btn{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:6px;cursor:pointer;min-width:84px}
+  .vbox{font-family:var(--mono);font-size:22px;font-weight:600;min-width:160px}
+  .vbox small{font-size:12px;color:var(--muted);font-weight:400;display:block}
+  input[type=range]{flex:1;min-width:220px;accent-color:var(--accent);height:28px}
+  .toggles{display:flex;gap:14px;flex-wrap:wrap;padding:4px 18px 6px;font-size:13px;color:var(--ink)}
+  .toggles label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .note{margin:6px 18px 12px;padding:10px 14px;border-left:4px solid var(--accent);background:#f2f6fa;border-radius:0 6px 6px 0;font-size:13.5px;line-height:1.55}
+  .note .t{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:650;margin-bottom:2px}
+  .hint{padding:0 18px 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  footer{padding:10px 18px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+  @media (max-width:560px){ header{flex-direction:column;gap:2px} .vbox{font-size:18px;min-width:0} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Relativity of Simultaneity</h1>
+    <div class="sub">Two events that happen at the same time for one observer can happen at different times for another</div>
+  </header>
+
+  <div class="plotwrap"><svg id="plot" viewBox="0 0 920 440" role="img" aria-label="A train passing a platform with flashes of light, and a spacetime diagram"></svg></div>
+
+  <div class="zoomable">
+  <div class="presets" id="scens"><span class="lbl">Scenario:</span></div>
+  <div class="presets" id="frames"><span class="lbl">Watch from:</span></div>
+
+  <div class="controls">
+    <button class="btn" id="play">&#9654; Play</button>
+    <div class="vbox"><small>train speed</small><span id="vv">0.50</span> c</div>
+    <input id="v" type="range" min="0" max="0.7" step="0.01" aria-label="Train speed">
+  </div>
+  <div class="controls" style="padding-top:0">
+    <span style="font-size:13px;color:var(--muted)">Time</span>
+    <input id="t" type="range" min="0" max="1" step="0.001" aria-label="Time">
+  </div>
+
+  <div class="toggles">
+    <label><input id="tOther" type="checkbox"> Show the other frame's "same time" line</label>
+    <label><input id="tBig" type="checkbox"> Projector mode (larger text)</label>
+  </div>
+
+  <div class="note" id="note"><span class="t" id="ntitle"></span><span id="ntext"></span></div>
+
+  <div class="hint">
+    <b>Why this happens:</b> both observers agree that light travels at c in every direction (the second postulate). Each one can only decide whether two distant events were simultaneous by working out when the light from them set off.
+    Because they're moving relative to each other, they reach different, equally valid, answers. Neither is wrong: <i>simultaneity is relative</i>. On the spacetime diagram, events on the same horizontal line happen at the same time in the frame you're watching from; the dashed tilted line joins events that are simultaneous for the other observer.
+  </div>
+
+  <footer>
+    Calculated with the Lorentz transformation in units where c = 1 and the carriage's own length is 1 light-unit. The train's proper length is used throughout, so it also shows the train length-contracted in the platform frame. Light is shown as pulses travelling at c; in reality they would be far too fast to see.
+    <br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.
+  </footer>
+  </div>
+</div>
+
+<script>
+"use strict";
+let scen="lightning", frame="S", playing=false, last=0;
+const vS=document.getElementById("v"), tS=document.getElementById("t"), tOther=document.getElementById("tOther");
+const V=()=>+vS.value, G=()=>1/Math.sqrt(1-V()*V());
+
+// ---------- the physics, set up in the platform frame S (c = 1, train proper length 1) ----------
+function setup(){
+  const v=V(), g=G(), Lp=1/g;                      // train length seen in S
+  const ev={};                                      // events in S: {x, t}
+  if(scen==="lightning"){
+    ev.A={x:-Lp/2,t:0}; ev.B={x:Lp/2,t:0};          // strikes at the rear (A) and front (B) as the ends pass the marks
+    ev.oA={x:0,t:Lp/2}; ev.oB={x:0,t:Lp/2};         // platform observer O at x = 0
+    const tB=Lp/(2*(1+v)), tA=Lp/(2*(1-v));         // train observer O' at x = v t
+    ev.pA={x:v*tA,t:tA}; ev.pB={x:v*tB,t:tB};
+  }else{
+    ev.E={x:0,t:0};                                 // flash from the middle of the carriage
+    const tR=Lp/(2*(1+v)), tF=Lp/(2*(1-v));
+    ev.R={x:-Lp/2+v*tR,t:tR}; ev.F={x:Lp/2+v*tF,t:tF};
+  }
+  return {v,g,Lp,ev};
+}
+const toFrame=(e,s)=>frame==="S"?e:{x:s.g*(e.x-s.v*e.t), t:s.g*(e.t-s.v*e.x)};
+
+// ---------- drawing ----------
+const svg=document.getElementById("plot"), NS="http://www.w3.org/2000/svg";
+const MONO='ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace';
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(a,s){const t=el("text",a);t.textContent=s;return t;}
+const XR=1.5, SX0=20, SX1=560, xs=x=>(SX0+SX1)/2+x/XR*(SX1-SX0)/2;
+const TY=150, PY=230;                               // train and platform heights in the scene
+const DX0=610, DX1=900, DY0=50, DY1=400;
+function tRange(s){
+  const ts=Object.values(s.ev).map(e=>toFrame(e,s).t);
+  return [Math.min(...ts)-0.15, Math.max(...ts)+0.25];
+}
+function draw(){
+  const s=setup(), [t0,t1]=tRange(s), T=t0+(t1-t0)*(+tS.value), v=s.v, g=s.g;
+  svg.textContent="";
+  const inS=frame==="S";
+  svg.appendChild(txt({x:(SX0+SX1)/2,y:22,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},inS?"Seen from the platform (the train moves right)":"Seen from the train (the platform moves left)"));
+  // positions of objects at frame time T
+  const restS=x=>inS?x:x/g-v*T;                     // object at rest on the platform
+  const restT=x=>inS?x/g+v*T:x;                     // object at rest on the train (x = proper position)
+  // platform
+  svg.appendChild(el("line",{x1:SX0,x2:SX1,y1:PY,y2:PY,stroke:"#7f95b0","stroke-width":3}));
+  for(let k=-6;k<=6;k++){ const x=xs(restS(k*0.25)); if(x>SX0&&x<SX1) svg.appendChild(el("line",{x1:x,x2:x,y1:PY,y2:PY+8,stroke:"#3d5675"})); }
+  if(scen==="lightning") for(const [m,lab] of [[-s.Lp/2,"A"],[s.Lp/2,"B"]]){ const x=xs(restS(m));
+    svg.appendChild(el("path",{d:`M${x} ${PY}l-6 12h12z`,fill:"#c3d2e2"})); svg.appendChild(txt({x,y:PY+28,fill:"#c3d2e2","font-size":11,"text-anchor":"middle","font-family":MONO},"mark "+lab)); }
+  // train (proper length 1)
+  const xr=xs(restT(-0.5)), xf=xs(restT(0.5));
+  svg.appendChild(el("rect",{x:xr,y:TY-36,width:xf-xr,height:44,rx:8,fill:"#22354c",stroke:"#5b8dd9","stroke-width":2}));
+  for(let w=1;w<5;w++){ const x=xr+(xf-xr)*w/5; svg.appendChild(el("rect",{x:x-10,y:TY-28,width:20,height:14,rx:2,fill:"#13233a"})); }
+  svg.appendChild(el("circle",{cx:xr+10,cy:TY+12,r:6,fill:"#7f95b0"})); svg.appendChild(el("circle",{cx:xf-10,cy:TY+12,r:6,fill:"#7f95b0"}));
+  svg.appendChild(txt({x:xr+4,y:TY-42,fill:"#a9bbcf","font-size":10.5,"font-family":MONO},"rear"));
+  svg.appendChild(txt({x:xf-4,y:TY-42,fill:"#a9bbcf","font-size":10.5,"text-anchor":"end","font-family":MONO},"front →"));
+  // observers
+  const xO=xs(restS(0)), xP=xs(restT(0));
+  const person=(x,y,col,lab,ly)=>{ svg.appendChild(el("circle",{cx:x,cy:y-26,r:6,fill:col})); svg.appendChild(el("line",{x1:x,x2:x,y1:y-20,y2:y-4,stroke:col,"stroke-width":3}));
+    svg.appendChild(txt({x,y:ly||y+16,fill:col,"font-size":11.5,"text-anchor":"middle","font-weight":600},lab)); };
+  // light pulses: from each emission event, one pulse each way
+  const emits=scen==="lightning"?[["A","var(--fa)"],["B","var(--fb)"]]:[["E","var(--spec)"]];
+  for(const [k,col] of emits){ const e=toFrame(s.ev[k],s);
+    if(T<e.t) continue;
+    const age=T-e.t;
+    if(age<0.06){ svg.appendChild(el("path",{d:`M${xs(e.x)} 60l-8 30h8l-6 28 18-38h-8l8-20z`,fill:col})); }
+    for(const dir of [-1,1]){ const x=xs(e.x+dir*age); if(x<SX0||x>SX1) continue;
+      if(scen==="flash"&&T>=toFrame(s.ev[dir<0?"R":"F"],s).t) continue;     // absorbed by the carriage wall
+      svg.appendChild(el("circle",{cx:x,cy:scen==="lightning"?TY-8:TY-8,r:7,fill:col,"fill-opacity":0.9}));
+      svg.appendChild(el("circle",{cx:x,cy:TY-8,r:14,fill:col,"fill-opacity":0.15})); } }
+  if(scen==="lightning"){
+    const seen=(o,k)=>{ const e=toFrame(s.ev[o],s); return T>=e.t; };
+    person(xO,PY-2,"#e9eef4","O (platform)");
+    person(xP,TY-18,"#ffd166","O′ (train)",TY+34);
+    const tag=(x,y,parts)=>parts.forEach(([on,c,t],i)=>{ if(on) svg.appendChild(txt({x:x+(i?14:-14),y,fill:c,"font-size":11,"text-anchor":i?"start":"end","font-family":MONO},t)); });
+    tag(xO,PY+46,[[seen("oA"),"#4cc9f0","saw A"],[seen("oB"),"#f4a261","saw B"]]);
+    tag(xP,TY-60,[[seen("pA"),"#4cc9f0","saw A"],[seen("pB"),"#f4a261","saw B"]]);
+  }else{
+    const hit=k=>T>=toFrame(s.ev[k],s).t;
+    svg.appendChild(el("circle",{cx:xs(restT(0)),cy:TY-8,r:5,fill:"#ffd166"}));
+    svg.appendChild(txt({x:xs(restT(0)),y:TY+30,fill:"#ffd166","font-size":11,"text-anchor":"middle","font-family":MONO},"flash"));
+    if(hit("R")) svg.appendChild(el("rect",{x:xr-3,y:TY-36,width:6,height:44,fill:"#ffd166"}));
+    if(hit("F")) svg.appendChild(el("rect",{x:xf-3,y:TY-36,width:6,height:44,fill:"#ffd166"}));
+    person(xO,PY-2,"#e9eef4","platform observer");
+  }
+  svg.appendChild(txt({x:(SX0+SX1)/2,y:300,fill:"#a9bbcf","font-size":12,"text-anchor":"middle","font-family":MONO},(inS?"platform":"train")+" time  t = "+T.toFixed(3)));
+  drawDiagram(s,T,t0,t1);
+  updateNote(s);
+}
+function drawDiagram(s,T,t0,t1){
+  const inS=frame==="S", v=s.v, g=s.g;
+  const dx=x=>DX0+(x+XR)/(2*XR)*(DX1-DX0), dt=t=>DY1-(t-t0)/(t1-t0)*(DY1-DY0);
+  svg.appendChild(txt({x:(DX0+DX1)/2,y:22,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Spacetime diagram ("+(inS?"platform":"train")+" frame)"));
+  svg.appendChild(el("rect",{x:DX0,y:DY0,width:DX1-DX0,height:DY1-DY0,fill:"none",stroke:"#1c2c42"}));
+  svg.appendChild(txt({x:(DX0+DX1)/2,y:DY1+18,fill:"#7f95b0","font-size":11,"text-anchor":"middle","font-family":MONO},"position →"));
+  svg.appendChild(txt({x:DX0-6,y:DY0+10,fill:"#7f95b0","font-size":11,"text-anchor":"end","font-family":MONO},"time ↑"));
+  const cp=el("clipPath",{id:"dg"}); cp.appendChild(el("rect",{x:DX0,y:DY0,width:DX1-DX0,height:DY1-DY0}));
+  const defs=el("defs",{}); defs.appendChild(cp); svg.appendChild(defs);
+  const gD=el("g",{"clip-path":"url(#dg)"}); svg.appendChild(gD);
+  // worldlines: platform observer and train observer / train ends
+  const wl=(f,col,w,dash)=>{ const a=f(t0-1), b=f(t1+1); gD.appendChild(el("line",{x1:dx(a),y1:dt(t0-1),x2:dx(b),y2:dt(t1+1),stroke:col,"stroke-width":w,"stroke-dasharray":dash||""})); };
+  const restS=x=>t=>inS?x:x/g-v*t, restT=x=>t=>inS?x/g+v*t:x;
+  wl(restS(0),"#e9eef4",1.6);
+  wl(restT(0),"#ffd166",1.6);
+  wl(restT(-0.5),"#5b8dd9",1,"4 3"); wl(restT(0.5),"#5b8dd9",1,"4 3");
+  // light rays and events
+  const evs=Object.entries(s.ev).map(([k,e])=>[k,toFrame(e,s)]);
+  const emit=scen==="lightning"?["A","B"]:["E"];
+  for(const [k,e] of evs) if(emit.includes(k)) for(const dir of [-1,1]){
+    const col=k==="A"?"#4cc9f0":k==="B"?"#f4a261":"#ffd166";
+    gD.appendChild(el("line",{x1:dx(e.x),y1:dt(e.t),x2:dx(e.x+dir*3),y2:dt(e.t+3),stroke:col,"stroke-width":1.2,"stroke-opacity":0.8})); }
+  for(const [k,e] of evs){ const big=emit.includes(k);
+    gD.appendChild(el(big?"rect":"circle",big?{x:dx(e.x)-5,y:dt(e.t)-5,width:10,height:10,fill:k==="A"?"#4cc9f0":k==="B"?"#f4a261":"#ffd166",transform:`rotate(45 ${dx(e.x)} ${dt(e.t)})`}:{cx:dx(e.x),cy:dt(e.t),r:4,fill:"#fff"})); }
+  // "same time" lines
+  gD.appendChild(el("line",{x1:DX0,x2:DX1,y1:dt(T),y2:dt(T),stroke:"#e9eef4","stroke-opacity":0.5}));
+  if(tOther.checked){
+    const first=evs.find(([k])=>k===emit[0])[1];
+    const slope=inS?v:-v;                          // other frame's line of constant time
+    const ta=first.t+slope*(-XR-first.x), tb=first.t+slope*(XR-first.x);
+    gD.appendChild(el("line",{x1:dx(-XR),y1:dt(ta),x2:dx(XR),y2:dt(tb),stroke:"#9d8df1","stroke-width":1.6,"stroke-dasharray":"6 4"}));
+    gD.appendChild(txt({x:dx(XR)-4,y:dt(tb)-6,fill:"#c8bffa","font-size":10.5,"text-anchor":"end","font-family":MONO},"same time for "+(inS?"the train":"the platform")));
+  }
+  gD.appendChild(txt({x:dx(restS(0)(t1))-4,y:DY0+12,fill:"#e9eef4","font-size":10,"text-anchor":"end","font-family":MONO},scen==="lightning"?"O":"platform"));
+  gD.appendChild(txt({x:dx(restT(0)(t1))+4,y:dt(t1)+26,fill:"#ffd166","font-size":10,"font-family":MONO},scen==="lightning"?"O′":"train"));
+}
+function updateNote(s){
+  const inS=frame==="S", ev=s.ev, f=e=>toFrame(e,s);
+  let title, text;
+  if(scen==="lightning"){
+    const dtAB=f(ev.A).t-f(ev.B).t;
+    if(s.v<0.005){ title="Both strikes are simultaneous for everyone"; text="With the train at rest, both observers are in the same frame and agree the strikes happened together. Speed it up."; }
+    else if(inS){ title="Platform: the strikes are simultaneous"; text="Lightning hits A and B at the same moment. Observer O, halfway between, sees both flashes together. O′ is moving towards B's light and away from A's, so O′ sees B first. That alone isn't the surprise: O′ can allow for the light's travel time."; }
+    else{ title="Train: B was struck first"; text=`In the train's frame O′ is at rest exactly halfway between the ends, and light still travels at c both ways. O′ sees B's flash first, so B must really have been struck first, by ${Math.abs(dtAB).toFixed(3)} light-units of train time. The platform observer still sees both flashes together, because the platform is moving.`; }
+  }else{
+    const dtRF=f(ev.F).t-f(ev.R).t;
+    if(s.v<0.005){ title="Both ends are lit together"; text="At rest, everyone agrees the light reaches both ends of the carriage at the same time. Speed the train up."; }
+    else if(!inS){ title="Train: both ends are lit at the same time"; text="Inside the carriage the flash is in the middle and light travels at c both ways, so it reaches the front and rear walls at exactly the same time. This is the flashlights-on-a-train scenario."; }
+    else{ title="Platform: the rear wall is lit first"; text=`From the platform, the rear wall moves towards the light and the front wall moves away from it. Since light still travels at c, it reaches the rear first, ${dtRF.toFixed(3)} light-units before the front. Two events that were simultaneous on the train are not simultaneous on the platform.`; }
+  }
+  document.getElementById("ntitle").textContent=title; document.getElementById("ntext").textContent=text;
+  document.getElementById("vv").textContent=s.v.toFixed(2);
+}
+
+// ---------- controls ----------
+const SCENS=[["lightning","Lightning strikes both ends"],["flash","Flash in the middle of the carriage"]];
+const FRAMES=[["S","The platform"],["T","The train"]];
+const sb=document.getElementById("scens"), fb=document.getElementById("frames");
+const mark=()=>{ for(const b of sb.querySelectorAll(".pill")) b.classList.toggle("on",b.dataset.k===scen); for(const b of fb.querySelectorAll(".pill")) b.classList.toggle("on",b.dataset.k===frame); };
+for(const [k,n] of SCENS){ const b=document.createElement("button"); b.className="pill"; b.textContent=n; b.dataset.k=k; b.addEventListener("click",()=>{ scen=k; tS.value=0; mark(); draw(); }); sb.appendChild(b); }
+for(const [k,n] of FRAMES){ const b=document.createElement("button"); b.className="pill"; b.textContent=n; b.dataset.k=k; b.addEventListener("click",()=>{ frame=k; mark(); draw(); }); fb.appendChild(b); }
+for(const c of [vS,tS,tOther]) c.addEventListener("input",draw);
+document.getElementById("tBig").addEventListener("input",e=>document.body.classList.toggle("big",e.target.checked));
+const playBtn=document.getElementById("play");
+function tick(now){ if(!playing) return; const dt=Math.min((now-last)/1000,0.1); last=now;
+  let u=+tS.value+dt/6; if(u>=1){ u=1; playing=false; playBtn.innerHTML="&#9654; Play"; } tS.value=u; draw(); if(playing) requestAnimationFrame(tick); }
+playBtn.addEventListener("click",()=>{ playing=!playing; playBtn.innerHTML=playing?"&#10074;&#10074; Pause":"&#9654; Play";
+  if(playing){ if(+tS.value>=1) tS.value=0; last=performance.now(); requestAnimationFrame(tick); } });
+
+vS.value=0.5; tS.value=0.55;
+mark(); draw();
+</script>
+</body>
+</html>
