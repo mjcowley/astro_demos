@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exoplanet Transit Light Curve</title>
+<style>
+  :root{
+    --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
+    --panel:#0d1826; --panel-edge:#22354c;
+    --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f6f8;padding:16px 8px}
+  .app{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 18px 10px}
+  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.01em}
+  header .sub{font-size:12px;color:var(--muted)}
+  .plotwrap{background:var(--panel);border-top:1px solid var(--panel-edge);border-bottom:1px solid var(--panel-edge)}
+  svg{display:block;width:100%;height:auto}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:12px 18px 2px;font-size:13px}
+  .presets .lbl{color:var(--muted);min-width:52px}
+  .pill{font:inherit;font-size:12.5px;padding:5px 11px;border:1px solid var(--line);background:#fff;border-radius:99px;cursor:pointer;color:var(--ink)}
+  .pill:hover{border-color:var(--accent)}
+  .pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .controls{padding:10px 18px 4px;display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center}
+  .btn{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:6px;cursor:pointer;min-width:84px}
+  .sliders{flex:1;min-width:280px;display:grid;grid-template-columns:120px 1fr 130px;gap:2px 14px;align-items:center;font-size:13px}
+  .sliders .v{font-family:var(--mono);font-size:12.5px}
+  input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+  .toggles{display:flex;gap:14px;flex-wrap:wrap;padding:4px 18px 6px;font-size:13px;color:var(--ink);align-items:center}
+  .toggles label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  select{font:inherit;font-size:13px;padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+  .readouts{display:flex;gap:10px 24px;flex-wrap:wrap;padding:4px 18px 10px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .readouts b{color:var(--ink);font-weight:600}
+  .eq{margin:0 18px 12px;font-family:var(--mono);font-size:12.5px;line-height:1.6;background:#f2f6fa;border-radius:6px;padding:8px 12px;white-space:pre;overflow-x:auto}
+  .hint{padding:0 18px 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  footer{padding:10px 18px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+  @media (max-width:600px){
+    header{flex-direction:column;gap:2px}
+    .sliders{grid-template-columns:1fr 110px} .sliders .lab{grid-column:1/-1;margin-top:4px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Exoplanet Transit Light Curve</h1>
+    <div class="sub">A planet crossing its star blocks a little light. Change the planet and orbit to see how the dip changes</div>
+  </header>
+
+  <div class="plotwrap"><svg id="plot" viewBox="0 0 920 400" role="img" aria-label="Star with transiting planet, and the resulting light curve"></svg></div>
+
+  <div class="presets" id="pstar"><span class="lbl">Star:</span></div>
+  <div class="presets" id="pplan"><span class="lbl">Planet:</span></div>
+
+  <div class="controls">
+    <button class="btn" id="play">&#10074;&#10074; Pause</button>
+    <div class="sliders">
+      <span class="lab">Planet radius</span><input id="Rp" type="range" min="-0.52" max="1.4" step="any" aria-label="Planet radius"><span class="v" id="Rpv"></span>
+      <span class="lab">Orbital period</span><input id="P" type="range" min="-0.3" max="3.7" step="any" aria-label="Orbital period"><span class="v" id="Pv"></span>
+      <span class="lab">Impact parameter</span><input id="b" type="range" min="0" max="1.3" step="0.01" aria-label="Impact parameter"><span class="v" id="bv"></span>
+    </div>
+  </div>
+
+  <div class="toggles">
+    <label><input id="tLD" type="checkbox" checked> Limb darkening</label>
+    <label><input id="tAuto" type="checkbox" checked> Auto-scale y-axis</label>
+    <label>Noise <select id="noise">
+      <option value="0">none</option>
+      <option value="60">space telescope (60 ppm)</option>
+      <option value="1000">ground-based (0.1%)</option>
+    </select></label>
+  </div>
+
+  <div class="readouts">
+    <span>depth <b id="rD"></b></span>
+    <span>duration <b id="rT"></b></span>
+    <span>orbit size a <b id="rA"></b></span>
+    <span>inclination <b id="rI"></b></span>
+    <span>chance of a transit <b id="rP"></b></span>
+  </div>
+
+  <div class="eq" id="eq"></div>
+
+  <div class="hint">
+    <b>Reading a light curve:</b> the <b>depth</b> of the dip tells you how big the planet is compared with its star, since depth &asymp; (R<sub>planet</sub>/R<sub>star</sub>)&sup2;.
+    The time between dips is the <b>orbital period</b>, and Kepler's third law turns that into the size of the orbit.
+    The <b>impact parameter</b> b is how far from the centre of the star the planet crosses (0 = straight through the middle, 1 = grazing the edge); larger b gives shorter, more V-shaped transits.
+    Limb darkening makes a star's edge look dimmer than its centre, which rounds off the bottom of the dip.
+  </div>
+
+  <footer>
+    Circular orbits, with the planet's own light ignored. Limb darkening uses a quadratic law (u&#8321; = 0.44, u&#8322; = 0.23, roughly right for a Sun-like star in visible light). Noise is randomly generated, 10-minute samples for illustration. Star and planet are drawn to scale with each other.
+    <br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.
+  </footer>
+</div>
+
+<script>
+"use strict";
+// ---------- constants ----------
+const RSUN=6.957e8, REARTH=6.371e6, G=6.674e-11, MSUNKG=1.989e30, AU=1.496e11, DAY=86400;
+const U1=0.44, U2=0.23;
+
+const STARS=[
+  {name:"Sun-like (G2)",   R:1.00, M:1.00, T:5772},
+  {name:"Red dwarf (M4)",  R:0.25, M:0.25, T:3200},
+  {name:"Hot star (A2)",   R:1.80, M:2.00, T:9000},
+];
+const PLANETS=[
+  {name:"Earth",        Rp:1.0,  P:365.25},
+  {name:"Super-Earth",  Rp:1.6,  P:12},
+  {name:"Neptune-size", Rp:3.9,  P:30},
+  {name:"Jupiter",      Rp:11.2, P:4333},
+  {name:"Hot Jupiter",  Rp:13.0, P:3.5},
+];
+
+// ---------- blackbody colour for the star disc ----------
+const Hp=6.62607015e-34, Cl=2.99792458e8, Kb=1.380649e-23;
+function planck(lA,T){ const l=lA*1e-10, x=Hp*Cl/(l*Kb*T); if(x>700) return 0; return (2*Hp*Cl*Cl/Math.pow(l,5))/(Math.exp(x)-1); }
+function pg(x,mu,s1,s2){ const t=(x-mu)*(x<mu?1/s1:1/s2); return Math.exp(-0.5*t*t); }
+function starRGB(T){
+  let X=0,Y=0,Z=0;
+  for(let nm=380;nm<=780;nm+=5){
+    const b=planck(nm*10,T);
+    X+=b*(1.056*pg(nm,599.8,37.9,31.0)+0.362*pg(nm,442.0,16.0,26.7)-0.065*pg(nm,501.1,20.4,26.2));
+    Y+=b*(0.821*pg(nm,568.8,46.9,40.5)+0.286*pg(nm,530.9,16.3,31.1));
+    Z+=b*(1.217*pg(nm,437.0,11.8,36.0)+0.681*pg(nm,459.0,26.0,13.8));
+  }
+  const s=X+Y+Z; X/=s; Y/=s; Z/=s;
+  const gam=v=>{ v=Math.max(v,0); return v<=0.0031308?12.92*v:1.055*Math.pow(v,1/2.4)-0.055; };
+  let c=[gam(3.2406*X-1.5372*Y-0.4986*Z), gam(-0.9689*X+1.8758*Y+0.0415*Z), gam(0.0557*X-0.2040*Y+1.0570*Z)];
+  const mx=Math.max(...c)||1; return c.map(v=>Math.min(Math.max(v/mx,0),1));
+}
+const hex=c=>"#"+c.map(v=>Math.round(v*255).toString(16).padStart(2,"0")).join("");
+
+// ---------- transit model ----------
+function overlap(r,p,z){      // area shared by a circle of radius r at the origin and one of radius p at distance z
+  if(z>=r+p) return 0;
+  if(z<=Math.abs(r-p)) return Math.PI*Math.min(r,p)**2;
+  const a1=r*r*Math.acos(Math.min(Math.max((z*z+r*r-p*p)/(2*z*r),-1),1));
+  const a2=p*p*Math.acos(Math.min(Math.max((z*z+p*p-r*r)/(2*z*p),-1),1));
+  const a3=0.5*Math.sqrt(Math.max((-z+r+p)*(z+r-p)*(z-r+p)*(z+r+p),0));
+  return a1+a2-a3;
+}
+const intensity=(r,ld)=>{ if(!ld) return 1; const mu=Math.sqrt(Math.max(1-r*r,0)); return 1-U1*(1-mu)-U2*(1-mu)*(1-mu); };
+const NR=300;
+function relFlux(z,k,ld){    // z = centre separation, k = Rp/Rs, both in stellar radii
+  if(z>=1+k) return 1;
+  if(!ld) return 1-overlap(1,k,z)/Math.PI;
+  const tot=Math.PI*(1-U1/3-U2/6);
+  if(k<0.04) return 1-intensity(Math.min(z,1),true)*overlap(1,k,z)/tot;   // small planet: surface brightness is uniform under it
+  let blocked=0, prev=0;
+  const lo=Math.max(z-k,0), hi=Math.min(z+k,1);
+  for(let j=1;j<=NR;j++){
+    const r=lo+(hi-lo)*j/NR, a=overlap(r,k,z);
+    blocked+=intensity(r-(hi-lo)/(2*NR),true)*(a-prev); prev=a;
+  }
+  blocked+=intensity(lo/2,true)*overlap(lo,k,z);   // inner disc inside lo (only when the planet covers the centre)
+  return 1-blocked/tot;
+}
+
+// ---------- state ----------
+let star=STARS[0];
+const Rps=document.getElementById("Rp"), Ps=document.getElementById("P"), bs=document.getElementById("b");
+const tLD=document.getElementById("tLD"), tAuto=document.getElementById("tAuto"), noiseSel=document.getElementById("noise");
+let model=null, phase=0.15, playing=true, last=performance.now();
+
+function geometry(){
+  const Rp=Math.pow(10,+Rps.value), P=Math.pow(10,+Ps.value), b=+bs.value;
+  const k=Rp*REARTH/(star.R*RSUN);
+  const a=Math.cbrt(G*star.M*MSUNKG*Math.pow(P*DAY,2)/(4*Math.PI*Math.PI));
+  const aR=a/(star.R*RSUN);
+  const cosi=Math.min(b/aR,1), sini=Math.sqrt(1-cosi*cosi);
+  const dur=(bb)=>{ const s=(1+k)**2-bb*bb; return s<=0?0:P/Math.PI*Math.asin(Math.min(Math.sqrt(s)/(aR*sini),1)); };
+  const T14=dur(b), T0=P/Math.PI*Math.asin(Math.min((1+k)/aR,1));
+  return {Rp,P,b,k,a,aR,cosi,sini,T14,T0,transits:b<1+k};
+}
+function sepAt(g,t){          // t in days from mid-transit; returns sky position in stellar radii
+  const ph=2*Math.PI*t/g.P;
+  return {x:g.aR*Math.sin(ph), y:g.b*Math.cos(ph)};
+}
+// fixed-seed Gaussian noise so the scatter doesn't jump around as sliders move
+const NOISE=(()=>{ let s=20240613; const r=()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; };
+  return Array.from({length:4000},()=>Math.sqrt(-2*Math.log(r()+1e-12))*Math.cos(2*Math.PI*r())); })();
+
+function buildModel(){
+  const g=geometry(), ld=tLD.checked;
+  const half=0.75*(g.transits?g.T14:g.T0);        // window covers the transit plus some baseline
+  const N=400, ts=[], fs=[];
+  let fmin=1;
+  for(let i=0;i<=N;i++){
+    const t=-half+2*half*i/N, p=sepAt(g,t), f=relFlux(Math.hypot(p.x,p.y),g.k,ld);
+    ts.push(t); fs.push(f); fmin=Math.min(fmin,f);
+  }
+  const sig=+noiseSel.value*1e-6, pts=[];
+  if(sig>0){
+    const step=10/1440, n=Math.min(Math.floor(2*half/step),3999);
+    const off=Math.floor(n/2);
+    for(let j=0;j<=n;j++){
+      const t=(j-off)*step, p=sepAt(g,t);
+      pts.push([t, relFlux(Math.hypot(p.x,p.y),g.k,ld)+sig*NOISE[j]]);
+    }
+  }
+  model={g,ld,half,ts,fs,fmin,sig,pts};
+}
+
+// ---------- drawing ----------
+const svg=document.getElementById("plot"), NS="http://www.w3.org/2000/svg";
+const MONO='ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace';
+const W=920,H=400;
+const SX=0, SW=330, SCX=165, SCY=190, RPX=100;           // star view
+const CL=420, CR=W-16, CT=24, CB=H-46;                     // light-curve panel
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(a,s){const t=el("text",a);t.textContent=s;return t;}
+function niceStep(range){ const r=range/5, p=Math.pow(10,Math.floor(Math.log10(r))), m=r/p; return (m<1.5?1:m<3?2:m<7?5:10)*p; }
+
+let gStatic=null, gDyn=null, yr=null;
+function drawStatic(){
+  const {g,half,ts,fs,fmin,sig,pts,ld}=model;
+  svg.textContent="";
+  const defs=el("defs",{});
+  const c1=el("clipPath",{id:"sv"}); c1.appendChild(el("rect",{x:SX,y:0,width:SW+8,height:H})); defs.appendChild(c1);
+  const c2=el("clipPath",{id:"lc"}); c2.appendChild(el("rect",{x:CL,y:CT,width:CR-CL,height:CB-CT})); defs.appendChild(c2);
+  const rgb=starRGB(star.T), grad=el("radialGradient",{id:"disc",cx:"50%",cy:"50%",r:"50%"});
+  for(let i=0;i<=12;i++){
+    const r=i/12, I=intensity(Math.min(r,0.999),ld);
+    grad.appendChild(el("stop",{offset:(r*100).toFixed(1)+"%","stop-color":hex(rgb.map(v=>v*(0.25+0.75*I)))}));
+  }
+  defs.appendChild(grad); svg.appendChild(defs);
+
+  // star view
+  svg.appendChild(el("circle",{cx:SCX,cy:SCY,r:RPX,fill:"url(#disc)"}));
+  const yc=SCY+g.b*RPX;      // the planet's path across the disc
+  svg.appendChild(el("line",{x1:10,x2:SW+8,y1:yc,y2:yc,stroke:"#a9bbcf","stroke-width":1,"stroke-dasharray":"4 5","stroke-opacity":0.55}));
+  if(g.b>0.08){
+    svg.appendChild(el("line",{x1:SCX,x2:SCX,y1:SCY,y2:SCY+g.b*RPX,stroke:"#3a4654","stroke-width":1,"stroke-opacity":0.8}));
+    svg.appendChild(txt({x:SCX+5,y:SCY+g.b*RPX/2+4,fill:"#3a4654","font-size":11,"font-family":MONO},"b"));
+  }
+  svg.appendChild(txt({x:SCX,y:SCY+RPX+42,fill:"#a9bbcf","font-size":12,"text-anchor":"middle"},"View from Earth (to scale)"));
+  svg.appendChild(el("line",{x1:CL-82,x2:CL-82,y1:CT,y2:CB,stroke:"#1c2c42","stroke-width":1}));
+
+  // light-curve axes
+  let lo,hi;
+  if(tAuto.checked){
+    const depth=Math.max(1-fmin,2e-5), pad=Math.max(0.18*depth,3.2*sig);
+    lo=1-depth-pad; hi=1+Math.max(0.12*depth,3.2*sig);
+  }else{ lo=0.985; hi=1.0025; }
+  yr={lo,hi};
+  const xOf=t=>CL+(t+half)/(2*half)*(CR-CL), yOf=f=>CT+(hi-f)/(hi-lo)*(CB-CT);
+  const ys=niceStep(hi-lo), dec=Math.max(0,-Math.floor(Math.log10(ys)));
+  for(let v=Math.ceil(lo/ys)*ys; v<=hi+1e-12; v+=ys){
+    const y=yOf(v);
+    svg.appendChild(el("line",{x1:CL,x2:CR,y1:y,y2:y,stroke:"#1c2c42","stroke-width":1}));
+    svg.appendChild(txt({x:CL-6,y:y+4,fill:"#7f95b0","font-size":10.5,"text-anchor":"end","font-family":MONO},v.toFixed(dec)));
+  }
+  const hrs=half*24, xs=niceStep(2*hrs);
+  for(let v=Math.ceil(-hrs/xs)*xs; v<=hrs+1e-9; v+=xs){
+    const x=xOf(v/24);
+    svg.appendChild(el("line",{x1:x,x2:x,y1:CT,y2:CB,stroke:"#1c2c42","stroke-width":1}));
+    svg.appendChild(txt({x,y:CB+16,fill:"#7f95b0","font-size":11,"text-anchor":"middle","font-family":MONO},
+      (Math.abs(v)<1e-9?"0":(+v.toPrecision(3)).toString().replace("-","−"))));
+  }
+  svg.appendChild(txt({x:(CL+CR)/2,y:H-10,fill:"#a9bbcf","font-size":12,"text-anchor":"middle"},"Hours from mid-transit"));
+  const ym=(CT+CB)/2;
+  svg.appendChild(txt({x:CL-62,y:ym,fill:"#a9bbcf","font-size":12,"text-anchor":"middle",transform:`rotate(-90 ${CL-62} ${ym})`},"Relative brightness"));
+
+  const lc=el("g",{"clip-path":"url(#lc)"}); svg.appendChild(lc);
+  for(const [t,f] of pts) lc.appendChild(el("circle",{cx:xOf(t),cy:yOf(f),r:1.8,fill:"#7f95b0","fill-opacity":0.75}));
+  let d=""; ts.forEach((t,i)=>d+=(i?"L":"M")+xOf(t).toFixed(1)+" "+yOf(fs[i]).toFixed(2)+" ");
+  lc.appendChild(el("path",{d,fill:"none",stroke:"var(--spec)","stroke-width":2,"stroke-linejoin":"round"}));
+  if(!g.transits){
+    svg.appendChild(txt({x:(CL+CR)/2,y:CT+40,fill:"#ffb4a2","font-size":13,"text-anchor":"middle","font-weight":600},"The planet misses the star, so we see no transit"));
+  }else if(!tAuto.checked&&fmin<lo){
+    svg.appendChild(txt({x:(CL+CR)/2,y:CB-10,fill:"#ffb4a2","font-size":12,"text-anchor":"middle"},"Dip goes below the bottom of this fixed axis"));
+  }
+  gDyn=el("g",{}); svg.appendChild(gDyn);
+  gStatic={xOf,yOf};
+}
+function drawDyn(){
+  const {g,half,ld}=model, t=-half+2*half*phase, p=sepAt(g,t);
+  gDyn.textContent="";
+  const sv=el("g",{"clip-path":"url(#sv)"}); gDyn.appendChild(sv);
+  const pr=Math.max(g.k*RPX,1.2);
+  sv.appendChild(el("circle",{cx:SCX+p.x*RPX,cy:SCY+p.y*RPX,r:pr,fill:"#05080d",stroke:"#5b6b7a","stroke-width":pr>4?1:0.5}));
+  const f=relFlux(Math.hypot(p.x,p.y),g.k,ld), x=gStatic.xOf(t), y=gStatic.yOf(f);
+  gDyn.appendChild(el("line",{x1:x,x2:x,y1:CT,y2:CB,stroke:"#e9eef4","stroke-width":1,"stroke-opacity":0.35}));
+  if(f>=yr.lo&&f<=yr.hi) gDyn.appendChild(el("circle",{cx:x,cy:y,r:4.5,fill:"#fff",stroke:"var(--spec)","stroke-width":2}));
+}
+
+// ---------- readouts ----------
+const sup=n=>String(n).replace(/[0-9-]/g,c=>"⁰¹²³⁴⁵⁶⁷⁸⁹"[+c]||"⁻");
+function fmtP(P){ return P<2?(P*24).toPrecision(3)+" hours":P<1000?(+P.toPrecision(3))+" days":(+(P/365.25).toPrecision(3))+" years"; }
+function fmtHours(h){ return h<1?Math.round(h*60)+" min":h<48?(+h.toPrecision(3))+" hours":(+(h/24).toPrecision(3))+" days"; }
+function update(){
+  const {g,fmin}=model;
+  document.getElementById("Rpv").textContent=(+g.Rp.toPrecision(3))+" R⊕"+(g.Rp>5?" ("+(g.Rp/11.21).toFixed(2)+" R♃)":"");
+  document.getElementById("Pv").textContent=fmtP(g.P);
+  document.getElementById("bv").textContent=g.b.toFixed(2);
+  const depth=1-fmin;
+  document.getElementById("rD").textContent=!g.transits?"none":depth>=0.001?(depth*100).toFixed(2)+"%":Math.round(depth*1e6)+" ppm";
+  document.getElementById("rT").textContent=g.transits?fmtHours(g.T14*24):"–";
+  document.getElementById("rA").textContent=(g.a/AU<0.1?(g.a/AU).toFixed(3):(+(g.a/AU).toPrecision(3)))+" AU";
+  document.getElementById("rI").textContent=(Math.acos(g.cosi)*180/Math.PI).toFixed(2)+"°";
+  document.getElementById("rP").textContent=(100/g.aR<1?(100/g.aR).toFixed(2):(100/g.aR).toPrecision(2))+"%";
+  const k2=g.k*g.k;
+  document.getElementById("eq").textContent=
+    "depth ≈ (R_planet / R_star)² = ("+(+g.Rp.toPrecision(3))+" R⊕ / "+star.R+" R☉)² = ("+g.k.toFixed(4)+")² = "+
+      (k2>=0.001?(k2*100).toFixed(2)+"%":Math.round(k2*1e6)+" ppm")+"\n"+
+    "a³ = G M P² / 4π²  →  a = "+(+(g.a/AU).toPrecision(3))+" AU = "+(+g.aR.toPrecision(3))+" stellar radii";
+}
+
+function rebuild(){ buildModel(); drawStatic(); drawDyn(); update(); markPresets(); }
+function markPresets(){
+  for(const b of document.querySelectorAll("#pstar .pill")) b.classList.toggle("on",b.dataset.n===star.name);
+  const Rp=Math.pow(10,+Rps.value), P=Math.pow(10,+Ps.value);
+  for(const b of document.querySelectorAll("#pplan .pill")){
+    const q=PLANETS[+b.dataset.i]; b.classList.toggle("on",Math.abs(q.Rp/Rp-1)<0.01&&Math.abs(q.P/P-1)<0.01);
+  }
+}
+
+// ---------- animation ----------
+const playBtn=document.getElementById("play");
+function frame(now){
+  const dt=Math.min((now-last)/1000,0.1); last=now;
+  if(playing){ phase=(phase+dt/6)%1; drawDyn(); }
+  requestAnimationFrame(frame);
+}
+playBtn.addEventListener("click",()=>{ playing=!playing; playBtn.innerHTML=playing?"&#10074;&#10074; Pause":"&#9654; Play"; });
+
+// ---------- controls ----------
+const ps=document.getElementById("pstar");
+for(const s of STARS){ const b=document.createElement("button"); b.className="pill"; b.textContent=s.name; b.dataset.n=s.name;
+  b.addEventListener("click",()=>{ star=s; rebuild(); }); ps.appendChild(b); }
+const pp=document.getElementById("pplan");
+PLANETS.forEach((q,i)=>{ const b=document.createElement("button"); b.className="pill"; b.textContent=q.name; b.dataset.i=i;
+  b.addEventListener("click",()=>{ Rps.value=Math.log10(q.Rp); Ps.value=Math.log10(q.P); rebuild(); }); pp.appendChild(b); });
+for(const c of [Rps,Ps,bs,tLD,tAuto,noiseSel]) c.addEventListener("input",rebuild);
+
+Rps.value=Math.log10(13.0); Ps.value=Math.log10(3.5); bs.value=0.3;
+rebuild();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
