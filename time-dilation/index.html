@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gravitational Time Dilation</title>
+<style>
+  :root{
+    --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
+    --panel:#0d1826; --panel-edge:#22354c;
+    --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f6f8;padding:16px 8px}
+  .app{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 18px 10px}
+  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.01em}
+  header .sub{font-size:12px;color:var(--muted)}
+  .plotwrap{background:var(--panel);border-top:1px solid var(--panel-edge);border-bottom:1px solid var(--panel-edge)}
+  svg{display:block;width:100%;height:auto}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:12px 18px 2px;font-size:13px}
+  .presets .lbl{color:var(--muted);min-width:56px}
+  .pill{font:inherit;font-size:12.5px;padding:5px 11px;border:1px solid var(--line);background:#fff;border-radius:99px;cursor:pointer;color:var(--ink)}
+  .pill:hover{border-color:var(--accent)}
+  .pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .sliders{padding:8px 18px 4px;display:grid;grid-template-columns:150px 1fr 220px;gap:2px 14px;align-items:center;font-size:13px}
+  .sliders .v{font-family:var(--mono);font-size:12.5px}
+  input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+  .toggles{display:flex;gap:14px;flex-wrap:wrap;padding:4px 18px 6px;font-size:13px;color:var(--ink);align-items:center}
+  .toggles label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  select{font:inherit;font-size:13px;padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+  .readouts{display:flex;gap:10px 24px;flex-wrap:wrap;padding:4px 18px 10px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .readouts b{color:var(--ink);font-weight:600}
+  .note{margin:2px 18px 12px;padding:10px 14px;border-left:4px solid var(--accent);background:#f2f6fa;border-radius:0 6px 6px 0;font-size:13.5px;line-height:1.55}
+  .eq{margin:0 18px 12px;font-family:var(--mono);font-size:12.5px;line-height:1.6;background:#f2f6fa;border-radius:6px;padding:8px 12px;white-space:pre;overflow-x:auto}
+  .hint{padding:0 18px 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  footer{padding:10px 18px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+  @media (max-width:600px){
+    header{flex-direction:column;gap:2px}
+    .sliders{grid-template-columns:1fr 160px} .sliders .lab{grid-column:1/-1;margin-top:4px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Gravitational Time Dilation</h1>
+    <div class="sub">Clocks run slower deep in a gravitational field. How much slower depends on what you're near</div>
+  </header>
+
+  <div class="plotwrap"><svg id="plot" viewBox="0 0 920 410" role="img" aria-label="A clock near a massive object compared with one far away, and light climbing out"></svg></div>
+
+  <div class="presets" id="objs"><span class="lbl">Near:</span></div>
+  <div class="presets" id="ex"><span class="lbl">Example:</span></div>
+
+  <div class="sliders">
+    <span class="lab">Clock's distance</span><input id="r" type="range" min="0" max="3" step="any" aria-label="Distance from the centre"><span class="v" id="rv"></span>
+  </div>
+
+  <div class="toggles">
+    <label>Compare with a clock <select id="ref" aria-label="Reference clock"><option value="far">far away</option><option value="surf">on the surface</option></select></label>
+    <label><input id="tOrbit" type="checkbox"> Clock is orbiting (add the effect of its speed)</label>
+  </div>
+
+  <div class="readouts" id="readouts"></div>
+  <div class="note" id="note"></div>
+  <div class="eq" id="eq"></div>
+
+  <div class="hint">
+    <b>Gravity slows time:</b> general relativity predicts that a clock lower down in a gravitational field ticks more slowly than one higher up. Light climbing out of the field loses energy and is stretched to longer, redder wavelengths (<i>gravitational redshift</i>), which is the same effect seen from outside.
+    At the Earth's surface the effect is tiny, about 0.06 seconds over a human lifetime, but it's real: atomic clocks show it even for a height change of 30 cm. GPS satellites must correct for it, or positions would drift by over 10 km a day. Near a neutron star or black hole the effect becomes enormous; at a black hole's event horizon, a distant observer would see a clock stop altogether.
+  </div>
+
+  <footer>
+    Uses the Schwarzschild result for a non-rotating, spherical mass, d&tau;/dt = &radic;(1 &minus; r<sub>s</sub>/r) with r<sub>s</sub> = 2GM/c&sup2;; inside a planet or star the formula is different, so the clock stays at or above the surface. With "orbiting" switched on, the special-relativity slowing for a circular orbit's speed is added (exactly, d&tau;/dt = &radic;(1 &minus; 3r<sub>s</sub>/2r)). The animated clocks are sped up and, for small effects, the difference is far too small to see.
+    <br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.
+  </footer>
+</div>
+
+<script>
+"use strict";
+const G=6.674e-11, C=2.998e8, MSUN=1.989e30;
+const OBJS=[
+  {name:"Earth", M:5.972e24, R:6.371e6, col:"#4f8fd6"},
+  {name:"Sun", M:MSUN, R:6.957e8, col:"#ffd166"},
+  {name:"White dwarf", M:1.02*MSUN, R:5.85e6, col:"#e9f1ff"},
+  {name:"Neutron star", M:1.4*MSUN, R:1.2e4, col:"#9fd8e0"},
+  {name:"Black hole (10 M☉)", M:10*MSUN, R:null, col:"#000"},
+];
+let obj=OBJS[0];
+const rS=document.getElementById("r"), refS=document.getElementById("ref"), tOrbit=document.getElementById("tOrbit");
+const rsOf=o=>2*G*o.M/(C*C);
+const rMin=o=>o.R?o.R:1.0005*rsOf(o);
+const rNow=()=>rMin(obj)*Math.pow(10,+rS.value);
+
+// clock rate relative to a distant, stationary observer
+function rate(r,orbit){ const x=rsOf(obj)/r; return orbit?Math.sqrt(Math.max(1-1.5*x,0)):Math.sqrt(Math.max(1-x,0)); }
+// rate of the clock at r compared with the reference clock, as 1 + delta (delta computed to stay accurate when tiny)
+function relRate(){
+  const r=rNow(), x=rsOf(obj)/r, orbit=tOrbit.checked&&1.5*x<1, k=orbit?1.5:1;   // no circular orbits inside 1.5 r_s, so treat the clock as hovering there
+  const lnClock=0.5*Math.log1p(-k*x);
+  const lnRef=refS.value==="surf"?0.5*Math.log1p(-rsOf(obj)/rMin(obj)):0;
+  return Math.expm1(lnClock-lnRef);    // fractional difference: negative means the clock runs slow
+}
+
+// ---------- drawing ----------
+const svg=document.getElementById("plot"), NS="http://www.w3.org/2000/svg";
+const MONO='ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace';
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(a,s){const t=el("text",a);t.textContent=s;return t;}
+const OX=80, OY=150, LX0=80, LX1=420;
+const C1={x:560,y:140}, C2={x:790,y:140}, CR=72;
+let gDyn=null, tSim=0;
+
+function wavelengthColour(nm){
+  const stops=[[380,"#7b2fbe"],[440,"#2b4bd8"],[490,"#1fb6c9"],[530,"#3ec46a"],[580,"#ffd93d"],[610,"#ff9a3c"],[700,"#e3454a"],[760,"#8f2226"]];
+  if(nm<=380) return stops[0][1]; if(nm>=760) return "#5a1418";
+  for(let i=0;i<stops.length-1;i++) if(nm<=stops[i+1][0]) return stops[i+1][0]-nm<nm-stops[i][0]?stops[i+1][1]:stops[i][1];
+}
+function drawClockFace(c,label,sub){
+  svg.appendChild(el("circle",{cx:c.x,cy:c.y,r:CR,fill:"#13233a",stroke:"#c3d2e2","stroke-width":2}));
+  for(let i=0;i<12;i++){ const a=i*Math.PI/6, r1=CR-(i%3?6:12);
+    svg.appendChild(el("line",{x1:c.x+r1*Math.sin(a),y1:c.y-r1*Math.cos(a),x2:c.x+(CR-2)*Math.sin(a),y2:c.y-(CR-2)*Math.cos(a),stroke:"#c3d2e2","stroke-width":i%3?1:2})); }
+  svg.appendChild(txt({x:c.x,y:c.y+CR+20,fill:"#e9eef4","font-size":12.5,"text-anchor":"middle"},label));
+  svg.appendChild(txt({x:c.x,y:c.y+CR+36,fill:"#a9bbcf","font-size":10.5,"text-anchor":"middle","font-family":MONO},sub));
+}
+function drawStatic(){
+  const r=rNow(), rm=rMin(obj), rs=rsOf(obj), lr=+rS.value;
+  svg.textContent="";
+  // object and radial line (log distance)
+  svg.appendChild(txt({x:240,y:22,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Where the clock is"));
+  const xR=lr2=>LX0+lr2/3*(LX1-LX0);
+  if(obj.R){ svg.appendChild(el("circle",{cx:OX-26,cy:OY,r:26,fill:obj.col})); }
+  else{ svg.appendChild(el("circle",{cx:OX-26,cy:OY,r:34,fill:"none",stroke:"#f4a261","stroke-width":3,"stroke-opacity":0.6})); svg.appendChild(el("circle",{cx:OX-26,cy:OY,r:26,fill:"#000",stroke:"#3d5675"})); }
+  svg.appendChild(el("line",{x1:LX0,x2:LX1,y1:OY,y2:OY,stroke:"#3d5675"}));
+  for(let k=0;k<=3;k++){ svg.appendChild(el("line",{x1:xR(k),x2:xR(k),y1:OY+4,y2:OY+10,stroke:"#3d5675"}));
+    svg.appendChild(txt({x:xR(k),y:OY+24,fill:"#7f95b0","font-size":10.5,"text-anchor":"middle","font-family":MONO},(10**k)+"×")); }
+  svg.appendChild(txt({x:(LX0+LX1)/2,y:OY+42,fill:"#a9bbcf","font-size":11,"text-anchor":"middle"},obj.R?"distance from centre, in "+obj.name.toLowerCase()+" radii":"distance from centre, in event-horizon radii"));
+  svg.appendChild(el("circle",{cx:xR(lr),cy:OY,r:9,fill:"#ffd166",stroke:"#fff","stroke-width":1.5}));
+  svg.appendChild(txt({x:xR(lr),y:OY-16,fill:"#ffd166","font-size":11,"text-anchor":"middle","font-family":MONO},"clock"));
+  svg.appendChild(txt({x:LX1,y:OY-16,fill:"#7f95b0","font-size":11,"text-anchor":"end","font-family":MONO},"far away →"));
+  // gravitational redshift strip: light leaves the clock at 500 nm and is stretched on the way out
+  const z=1/Math.sqrt(Math.max(1-rs/r,1e-12))-1, lamOut=500*(1+z);
+  svg.appendChild(txt({x:460,y:298,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Light sent out from the clock and received far away"));
+  const y0=350, xa=60, xb=860;
+  let d=""; let ph=0; const N=600;
+  for(let i=0;i<=N;i++){ const x=xa+(xb-xa)*i/N, f=i/N, lam=500*(1+z*Math.pow(f,0.35));
+    ph+=2*Math.PI*((xb-xa)/N)/(lam/500*22); d+=(i?"L":"M")+x.toFixed(1)+" "+(y0-14*Math.sin(ph)).toFixed(1); }
+  const grad=el("linearGradient",{id:"wl",x1:"0",x2:"1"});
+  for(let k=0;k<=8;k++){ const f=k/8; grad.appendChild(el("stop",{offset:f,"stop-color":wavelengthColour(500*(1+z*Math.pow(f,0.35)))})); }
+  const defs=el("defs",{}); defs.appendChild(grad); svg.appendChild(defs);
+  svg.appendChild(el("path",{d,fill:"none",stroke:"url(#wl)","stroke-width":2.4}));
+  svg.appendChild(txt({x:xa,y:y0+34,fill:"#a9bbcf","font-size":11,"font-family":MONO},"sent: 500 nm (green)"));
+  svg.appendChild(txt({x:xb,y:y0+34,fill:"#a9bbcf","font-size":11,"text-anchor":"end","font-family":MONO},"received: "+(lamOut<1e4?lamOut.toFixed(z<1e-3?4:1)+" nm":"far infrared and beyond")));
+  // clocks
+  svg.appendChild(txt({x:(C1.x+C2.x)/2,y:22,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Two identical clocks (sped up)"));
+  drawClockFace(C1,refS.value==="surf"?"On the surface":"Far away","reference");
+  drawClockFace(C2,"The clock",tOrbit.checked?"orbiting":"hovering");
+  gDyn=el("g",{}); svg.appendChild(gDyn);
+}
+function hand(c,ang,len,w,col){ gDyn.appendChild(el("line",{x1:c.x,y1:c.y,x2:c.x+len*Math.sin(ang),y2:c.y-len*Math.cos(ang),stroke:col,"stroke-width":w,"stroke-linecap":"round"})); }
+function drawDyn(){
+  gDyn.textContent="";
+  const k=1+relRate(), a1=tSim*2*Math.PI/6, a2=a1*k;
+  hand(C1,a1,CR-14,2.5,"#ffd166"); hand(C2,a2,CR-14,2.5,"#ffd166");
+  hand(C1,a1/12,CR-34,4,"#e9eef4"); hand(C2,a2/12,CR-34,4,"#e9eef4");
+  for(const c of [C1,C2]) gDyn.appendChild(el("circle",{cx:c.x,cy:c.y,r:4,fill:"#e9eef4"}));
+}
+
+// ---------- readouts ----------
+function fmtDur(s){ const a=Math.abs(s);
+  if(a<1e-6) return (a*1e9).toPrecision(3)+" ns"; if(a<1e-3) return (a*1e6).toPrecision(3)+" μs"; if(a<1) return (a*1e3).toPrecision(3)+" ms";
+  if(a<120) return a.toPrecision(3)+" s"; if(a<7200) return (a/60).toPrecision(3)+" min"; return (a/3600).toPrecision(3)+" hours"; }
+function fmtDist(m){ return m>=1e9?(+(m/1e9).toPrecision(3))+" million km":m>=1e6?Math.round(m/1e3).toLocaleString()+" km":(+(m/1e3).toPrecision(3))+" km"; }
+function update(){
+  const r=rNow(), rs=rsOf(obj), d=relRate(), perDay=d*86400, z=1/Math.sqrt(1-rs/r)-1;
+  document.getElementById("rv").textContent=fmtDist(r)+" from centre";
+  const slow=d<0;
+  document.getElementById("readouts").innerHTML=
+    `<span>clock runs <b>${Math.abs(d)<1e-15?"at the same rate":slow?"slow":"fast"}</b></span>`+
+    `<span>per day it ${slow?"loses":"gains"} <b>${fmtDur(perDay)}</b></span>`+
+    `<span>rate <b>${Math.abs(d)>1e-4?(1+d).toFixed(4):"1 "+(slow?"−":"+")+" "+Math.abs(d).toExponential(2).replace("e-","×10⁻").replace(/⁻(\d+)/,(m,p)=>"⁻"+p.replace(/\d/g,c=>"⁰¹²³⁴⁵⁶⁷⁸⁹"[c]))}</b></span>`+
+    `<span>redshift z <b>${z<1e-3?z.toExponential(2):z.toFixed(3)}</b></span>`;
+  let msg;
+  const isGPS=obj.name==="Earth"&&Math.abs(r/26.571e6-1)<0.02&&refS.value==="surf";
+  if(isGPS) msg=tOrbit.checked
+    ?`GPS satellites orbit 20,200 km up. Weaker gravity makes their clocks gain about 45.7 μs a day, while their 3.9 km/s speed makes them lose about 7.2 μs a day. The net gain of about 38 μs a day would build up to a position error of roughly ${Math.round(perDay*C/1000)} km a day, so the satellite clocks are deliberately set to tick slightly slow before launch.`
+    :"With speed ignored, the GPS satellite clock gains about 45.7 μs a day from gravity alone. Tick 'Clock is orbiting' to add the special-relativity effect of its speed.";
+  else if(!obj.R&&tOrbit.checked&&r<1.5*rs) msg="No circular orbits exist this close to a black hole (inside 1.5 times the event-horizon radius): even light can only just orbit at that distance. The clock is shown hovering instead.";
+  else if(!obj.R&&r<1.2*rs) msg="Just outside the event horizon, the clock is slowed enormously. A distant observer would see it tick slower and slower, and its light redden and fade, as it nears the horizon, never quite seeing it cross.";
+  else if(obj.name==="Neutron star") msg="On a neutron star's surface time runs about 20 to 30% slower than far away, and light leaving it is strongly redshifted. Astronomers use this redshift to work out neutron star masses and radii.";
+  else if(obj.name==="White dwarf") msg="The gravitational redshift of white dwarfs was one of the first tests of general relativity; for Sirius B it was measured in the 1920s, and much more precisely by Hubble in 2005.";
+  else if(obj.name==="Sun") msg="Clocks on the Sun's surface run about 2 parts in a million slow, losing roughly 0.2 seconds a day compared with far away. The redshift of sunlight from this effect has been measured.";
+  else msg="Near the Earth the effect is tiny, but modern atomic clocks are so precise they detect it between two clocks only a few centimetres apart in height.";
+  document.getElementById("note").textContent=msg;
+  document.getElementById("eq").textContent=
+    "r_s = 2GM/c² = "+(rs>=1000?(+(rs/1000).toPrecision(3))+" km":(+(rs*1000).toPrecision(3))+" mm")+",   r = "+fmtDist(r)+",   r_s / r = "+(rs/r).toExponential(3)+"\n"+
+    "dτ/dt = √(1 − "+(tOrbit.checked?"3r_s/2r":"r_s/r")+") = "+(Math.abs(d)>1e-6?(1+d).toPrecision(8):"1 − "+Math.abs(d).toExponential(3));
+  for(const b of document.querySelectorAll("#objs .pill")) b.classList.toggle("on",b.textContent===obj.name);
+}
+function render(){ drawStatic(); drawDyn(); update(); }
+
+// ---------- controls ----------
+const ob=document.getElementById("objs");
+for(const o of OBJS){ const b=document.createElement("button"); b.className="pill"; b.textContent=o.name;
+  b.addEventListener("click",()=>{ obj=o; rS.value=o.R?0:Math.log10(1.2/1.0005); refS.value="far"; tOrbit.checked=false; refS.options[1].disabled=!o.R; render(); }); ob.appendChild(b); }
+const EX=[
+  {name:"GPS satellite", go:()=>{ obj=OBJS[0]; rS.value=Math.log10(26.571e6/OBJS[0].R); refS.value="surf"; tOrbit.checked=true; }},
+  {name:"Surface of a neutron star", go:()=>{ obj=OBJS[3]; rS.value=0; refS.value="far"; tOrbit.checked=false; }},
+  {name:"Near a black hole's horizon", go:()=>{ obj=OBJS[4]; rS.value=Math.log10(1.05/1.0005); refS.value="far"; tOrbit.checked=false; }},
+];
+const exb=document.getElementById("ex");
+for(const e of EX){ const b=document.createElement("button"); b.className="pill"; b.textContent=e.name;
+  b.addEventListener("click",()=>{ e.go(); refS.options[1].disabled=!obj.R; render(); }); exb.appendChild(b); }
+for(const c of [rS,refS,tOrbit]) c.addEventListener("input",render);
+let last=performance.now();
+function frame(now){ const dt=Math.min((now-last)/1000,0.1); last=now; tSim+=dt; drawDyn(); requestAnimationFrame(frame); }
+
+rS.value=0;
+EX[0].go(); refS.options[1].disabled=false;
+render();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
