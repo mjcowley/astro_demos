@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kepler's Laws and Orbits</title>
+<style>
+  :root{
+    --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
+    --panel:#0d1826; --panel-edge:#22354c;
+    --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f6f8;padding:16px 8px}
+  .app{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 18px 10px}
+  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.01em}
+  header .sub{font-size:12px;color:var(--muted)}
+  .plotwrap{background:var(--panel);border-top:1px solid var(--panel-edge);border-bottom:1px solid var(--panel-edge)}
+  svg{display:block;width:100%;height:auto}
+  .tabs{display:flex;gap:6px;padding:12px 18px 0}
+  .tab{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border:1px solid var(--line);border-bottom:none;background:#f4f6f8;color:var(--muted);border-radius:7px 7px 0 0;cursor:pointer}
+  .tab.on{background:#fff;color:var(--accent);border-color:var(--accent)}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:12px 18px 2px;font-size:13px;border-top:1px solid var(--line)}
+  .presets .lbl{color:var(--muted);margin-right:2px}
+  .pill{font:inherit;font-size:12.5px;padding:5px 11px;border:1px solid var(--line);background:#fff;border-radius:99px;cursor:pointer;color:var(--ink)}
+  .pill:hover{border-color:var(--accent)}
+  .pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .controls{padding:8px 18px 4px;display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center}
+  .btn{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:6px;cursor:pointer;min-width:84px}
+  .sliders{flex:1;min-width:280px;display:grid;grid-template-columns:140px 1fr 150px;gap:2px 14px;align-items:center;font-size:13px}
+  .sliders .v{font-family:var(--mono);font-size:12.5px}
+  input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+  .toggles{display:flex;gap:14px;flex-wrap:wrap;padding:4px 18px 6px;font-size:13px;color:var(--ink)}
+  .toggles label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .readouts{display:flex;gap:10px 24px;flex-wrap:wrap;padding:4px 18px 10px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .readouts b{color:var(--ink);font-weight:600}
+  .note{margin:2px 18px 12px;padding:10px 14px;border-left:4px solid var(--accent);background:#f2f6fa;border-radius:0 6px 6px 0;font-size:13.5px;line-height:1.5}
+  .hint{padding:0 18px 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  .hide{display:none!important}
+  footer{padding:10px 18px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+  @media (max-width:600px){
+    header{flex-direction:column;gap:2px}
+    .sliders{grid-template-columns:1fr 120px} .sliders .lab{grid-column:1/-1;margin-top:4px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Kepler's Laws and Orbits</h1>
+    <div class="sub">Change an orbit's size and shape, or launch a planet and see what orbit it ends up on</div>
+  </header>
+
+  <div class="plotwrap"><svg id="plot" viewBox="0 0 920 460" role="img" aria-label="Orbit diagram and Kepler's third law plot"></svg></div>
+
+  <div class="tabs"><button class="tab on" data-m="kep">Kepler's three laws</button><button class="tab" data-m="launch">Launch speed</button></div>
+
+  <div class="presets kep" id="presets"><span class="lbl">Orbit like:</span></div>
+
+  <div class="controls">
+    <button class="btn" id="play">&#10074;&#10074; Pause</button>
+    <div class="sliders kep">
+      <span class="lab">Semi-major axis a</span><input id="a" type="range" min="-0.7" max="1.7" step="any" aria-label="Semi-major axis"><span class="v" id="av"></span>
+      <span class="lab">Eccentricity e</span><input id="e" type="range" min="0" max="0.97" step="0.001" aria-label="Eccentricity"><span class="v" id="ev"></span>
+      <span class="lab">Star's mass</span><input id="M" type="range" min="0.25" max="3" step="0.05" aria-label="Star mass"><span class="v" id="Mv"></span>
+    </div>
+    <div class="sliders launch hide">
+      <span class="lab">Launch speed</span><input id="vl" type="range" min="0.3" max="1.7" step="0.005" aria-label="Launch speed"><span class="v" id="vlv"></span>
+    </div>
+  </div>
+
+  <div class="toggles kep">
+    <label><input id="tSec" type="checkbox" checked> Equal-time slices (2nd law)</label>
+    <label><input id="tFoc" type="checkbox" checked> Foci and axes</label>
+    <label><input id="tVel" type="checkbox" checked> Velocity arrow</label>
+  </div>
+  <div class="presets launch hide" id="lpresets" style="border-top:none"><span class="lbl">Try:</span></div>
+
+  <div class="readouts" id="readouts"></div>
+  <div class="note" id="note"></div>
+
+  <div class="hint kep">
+    <b>Kepler's laws:</b> (1) planets move on ellipses with the Sun at one focus; (2) a line from the Sun to the planet sweeps out equal areas in equal times, so the planet speeds up near the Sun; (3) the square of the period is proportional to the cube of the semi-major axis.
+    With a in AU and P in years, P&sup2; = a&sup3; / M, where M is the star's mass in solar masses. Newton showed all three follow from his law of gravity.
+  </div>
+  <div class="hint launch hide">
+    <b>Launch speed:</b> the planet starts 1 AU from a Sun-like star, moving sideways. At exactly the <i>circular speed</i> (29.8 km/s, Earth's speed) it stays on a circle. Slower, and it falls inward on an ellipse; faster, and it swings out on a bigger ellipse.
+    At &radic;2 times the circular speed (42.1 km/s) it reaches <i>escape speed</i> and never comes back.
+  </div>
+
+  <footer>
+    Orbits are calculated from Newtonian gravity for a single planet around a star, ignoring the planet's own mass and the pull of other planets. Animations are sped up so every orbit takes a few seconds; the readouts give real values.
+    <br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.
+  </footer>
+</div>
+
+<script>
+"use strict";
+const TAU=2*Math.PI, AUYR_KMS=4.7405;            // 1 AU/yr in km/s
+const PLANETS=[
+  ["Mercury",0.387,0.206],["Venus",0.723,0.007],["Earth",1.000,0.017],["Mars",1.524,0.093],
+  ["Jupiter",5.203,0.049],["Saturn",9.537,0.057],["Uranus",19.19,0.046],["Neptune",30.07,0.010],["Pluto",39.48,0.249],
+].map(([name,a,e])=>({name,a,e,P:Math.pow(a,1.5)}));
+const PRESETS=[["Earth",1,0.017],["Mercury",0.387,0.206],["Mars",1.524,0.093],["Jupiter",5.203,0.049],["Pluto",39.48,0.249],["Halley's Comet",17.83,0.967]];
+const LPRESETS=[["Falling inward",0.75],["Circular",1],["Elliptical",1.25],["Escape",Math.SQRT2],["Fast escape",1.6]];
+
+let mode="kep", playing=true, phase=0, last=performance.now();
+const aS=document.getElementById("a"), eS=document.getElementById("e"), MS=document.getElementById("M"), vS=document.getElementById("vl");
+const tSec=document.getElementById("tSec"), tFoc=document.getElementById("tFoc"), tVel=document.getElementById("tVel");
+const A=()=>Math.pow(10,+aS.value), E=()=>+eS.value, MST=()=>+MS.value;
+
+// ---------- orbit maths (AU, years, solar masses: GM = 4 pi^2 M) ----------
+function keplerE(Mn,e){ let x=e<0.8?Mn:Math.PI; for(let i=0;i<30;i++){ const f=x-e*Math.sin(x)-Mn; x-=f/(1-e*Math.cos(x)); if(Math.abs(f)<1e-12) break; } return x; }
+function posAt(a,e,frac){                       // frac of period since perihelion; Sun at origin, perihelion on +x
+  const Ea=keplerE(TAU*frac,e), b=a*Math.sqrt(1-e*e);
+  return {x:a*(Math.cos(Ea)-e), y:b*Math.sin(Ea)};
+}
+const visViva=(r,a,M)=>Math.sqrt(4*Math.PI*Math.PI*M*(2/r-1/a));   // AU/yr
+
+// ---------- drawing ----------
+const svg=document.getElementById("plot"), NS="http://www.w3.org/2000/svg";
+const MONO='ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace';
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(a,s){const t=el("text",a);t.textContent=s;return t;}
+const SUP=n=>String(n).replace(/[0-9-]/g,c=>"⁰¹²³⁴⁵⁶⁷⁸⁹"[+c]||"⁻");
+const OX0=10, OX1=560, OY0=10, OY1=450;           // orbit panel
+const KX0=640, KX1=900, KY0=34, KY1=400;          // Kepler III panel
+let view=null, gDyn=null;
+
+function fitView(xmin,xmax,ymin,ymax){
+  const w=OX1-OX0-170, h=OY1-OY0-50, s=Math.min(w/(xmax-xmin),h/(ymax-ymin));
+  const cx=(OX0+OX1)/2-s*(xmin+xmax)/2, cy=(OY0+OY1)/2+s*(ymin+ymax)/2;
+  return {s, X:x=>cx+s*x, Y:y=>cy-s*y};
+}
+function arrowDefs(){
+  const defs=el("defs",{}), mk=el("marker",{id:"ar",viewBox:"0 0 10 10",refX:8,refY:5,markerWidth:7,markerHeight:7,orient:"auto"});
+  mk.appendChild(el("path",{d:"M0 0L10 5L0 10z",fill:"#4cc9f0"})); defs.appendChild(mk);
+  const cp=el("clipPath",{id:"oc"}); cp.appendChild(el("rect",{x:OX0,y:OY0,width:OX1-OX0,height:OY1-OY0})); defs.appendChild(cp);
+  return defs;
+}
+function sun(g,V,M){ const r=7+3*Math.sqrt(M);
+  g.appendChild(el("circle",{cx:V.X(0),cy:V.Y(0),r:r*2,fill:"#ffd166","fill-opacity":0.15}));
+  g.appendChild(el("circle",{cx:V.X(0),cy:V.Y(0),r,fill:"#ffd166"})); }
+
+function drawKep(){
+  const a=A(), e=E(), M=MST(), b=a*Math.sqrt(1-e*e), P=Math.pow(a,1.5)/Math.sqrt(M);
+  svg.textContent=""; svg.appendChild(arrowDefs());
+  const V=view=fitView(-a*(1+e),a*(1-e),-b,b);
+  const g=el("g",{"clip-path":"url(#oc)"}); svg.appendChild(g);
+  // equal-time sectors
+  if(tSec.checked){
+    const N=12;
+    for(let k=0;k<N;k++){
+      let d=`M${V.X(0).toFixed(1)} ${V.Y(0).toFixed(1)}`;
+      for(let j=0;j<=24;j++){ const p=posAt(a,e,(k+j/24)/N); d+=`L${V.X(p.x).toFixed(1)} ${V.Y(p.y).toFixed(1)}`; }
+      g.appendChild(el("path",{d:d+"Z",fill:k%2?"#2a9d8f":"#4cc9f0","fill-opacity":k%2?0.30:0.18,stroke:"none"}));
+    }
+  }
+  // orbit
+  let d=""; for(let j=0;j<=240;j++){ const t=j/240*TAU; d+=(j?"L":"M")+V.X(a*(Math.cos(t)-e)).toFixed(1)+" "+V.Y(b*Math.sin(t)).toFixed(1); }
+  g.appendChild(el("path",{d,fill:"none",stroke:"#e9eef4","stroke-width":1.4,"stroke-opacity":0.8}));
+  if(tFoc.checked){
+    g.appendChild(el("line",{x1:V.X(-a*(1+e)),x2:V.X(a*(1-e)),y1:V.Y(0),y2:V.Y(0),stroke:"#7f95b0","stroke-dasharray":"4 4"}));
+    g.appendChild(el("line",{x1:V.X(-a*e),x2:V.X(-a*e),y1:V.Y(b),y2:V.Y(-b),stroke:"#7f95b0","stroke-dasharray":"4 4","stroke-opacity":0.6}));
+    const fx=V.X(-2*a*e);
+    g.appendChild(el("path",{d:`M${fx-5} ${V.Y(0)-5}L${fx+5} ${V.Y(0)+5}M${fx-5} ${V.Y(0)+5}L${fx+5} ${V.Y(0)-5}`,stroke:"#c3d2e2","stroke-width":1.5}));
+    if(e>0.05) g.appendChild(txt({x:fx,y:V.Y(0)+20,fill:"#c3d2e2","font-size":11,"text-anchor":"middle","font-family":MONO},"empty focus"));
+    g.appendChild(txt({x:V.X(a*(1-e))+6,y:V.Y(0)-8,fill:"#a9bbcf","font-size":11,"font-family":MONO},"perihelion"));
+    g.appendChild(txt({x:V.X(-a*(1+e))-6,y:V.Y(0)-8,fill:"#a9bbcf","font-size":11,"text-anchor":"end","font-family":MONO},"aphelion"));
+    // label the semi-major axis along the bottom of the ellipse's major axis
+    g.appendChild(txt({x:V.X(-a*e-a/2),y:V.Y(0)+16,fill:"#7f95b0","font-size":11,"text-anchor":"middle","font-family":MONO},"a"));
+  }
+  sun(g,V,M);
+  gDyn=el("g",{}); g.appendChild(gDyn);
+  drawKepIII(a,M,P);
+}
+function drawKepIII(a,M,P){
+  const lx=v=>KX0+(Math.log10(v)+1)/3*(KX1-KX0), ly=v=>KY1-(Math.log10(v)+1.5)/4.5*(KY1-KY0);
+  svg.appendChild(txt({x:(KX0+KX1)/2,y:20,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Kepler's 3rd law: P² ∝ a³"));
+  for(let k=-1;k<=2;k++){ const x=lx(Math.pow(10,k));
+    svg.appendChild(el("line",{x1:x,x2:x,y1:KY0,y2:KY1,stroke:"#1c2c42"}));
+    svg.appendChild(txt({x,y:KY1+16,fill:"#7f95b0","font-size":11,"text-anchor":"middle","font-family":MONO},k===0?"1":k===1?"10":"10"+SUP(k))); }
+  for(let k=-1;k<=3;k++){ const y=ly(Math.pow(10,k));
+    svg.appendChild(el("line",{x1:KX0,x2:KX1,y1:y,y2:y,stroke:"#1c2c42"}));
+    svg.appendChild(txt({x:KX0-6,y:y+4,fill:"#7f95b0","font-size":11,"text-anchor":"end","font-family":MONO},k===0?"1":k===1?"10":"10"+SUP(k))); }
+  svg.appendChild(txt({x:(KX0+KX1)/2,y:KY1+34,fill:"#a9bbcf","font-size":12,"text-anchor":"middle"},"Semi-major axis a (AU)"));
+  const ym=(KY0+KY1)/2;
+  svg.appendChild(txt({x:KX0-40,y:ym,fill:"#a9bbcf","font-size":12,"text-anchor":"middle",transform:`rotate(-90 ${KX0-40} ${ym})`},"Period P (years)"));
+  const line=(m,col,dash)=>svg.appendChild(el("line",{x1:lx(0.1),y1:ly(Math.pow(0.1,1.5)/Math.sqrt(m)),x2:lx(100),y2:ly(1000/Math.sqrt(m)),stroke:col,"stroke-width":1.4,"stroke-dasharray":dash||""}));
+  line(1,"#7f95b0","5 4");
+  if(Math.abs(M-1)>0.01) line(M,"var(--spec)");
+  for(const p of PLANETS){ const x=lx(p.a), y=ly(p.P);
+    svg.appendChild(el("circle",{cx:x,cy:y,r:3.2,fill:"#c3d2e2"}));
+    svg.appendChild(txt({x:x+6,y:y+12,fill:"#a9bbcf","font-size":10,"font-family":MONO},p.name)); }
+  const x=lx(a), y=ly(P);
+  if(P>=Math.pow(10,-1.5)&&P<=1000){
+    svg.appendChild(el("circle",{cx:x,cy:y,r:7,fill:"none",stroke:"var(--spec)","stroke-width":2}));
+    svg.appendChild(txt({x:x-10,y:y-10,fill:"#ffd166","font-size":11.5,"text-anchor":"end","font-weight":600,"font-family":MONO},"your orbit"));
+  }
+  svg.appendChild(txt({x:KX1-4,y:KY1-8,fill:"#7f95b0","font-size":10,"text-anchor":"end","font-family":MONO},Math.abs(M-1)>0.01?"dashed: Sun   solid: your star":"dashed: P² = a³ (Sun)"));
+}
+function dynKep(){
+  const a=A(), e=E(), M=MST(), V=view, p=posAt(a,e,phase), r=Math.hypot(p.x,p.y);
+  gDyn.textContent="";
+  gDyn.appendChild(el("line",{x1:V.X(0),y1:V.Y(0),x2:V.X(p.x),y2:V.Y(p.y),stroke:"#ffd166","stroke-width":1,"stroke-opacity":0.6}));
+  if(tVel.checked){
+    const q=posAt(a,e,phase+1e-4), vx=q.x-p.x, vy=q.y-p.y, n=Math.hypot(vx,vy), v=visViva(r,a,M);
+    const L=26+60*v/visViva(a*(1-e),a,M);     // arrow length scaled to the fastest speed on this orbit
+    const x1=V.X(p.x), y1=V.Y(p.y);
+    gDyn.appendChild(el("line",{x1,y1,x2:x1+L*vx/n,y2:y1-L*vy/n,stroke:"#4cc9f0","stroke-width":2,"marker-end":"url(#ar)"}));
+  }
+  gDyn.appendChild(el("circle",{cx:V.X(p.x),cy:V.Y(p.y),r:6,fill:"#5b8dd9",stroke:"#fff","stroke-width":1.5}));
+  document.getElementById("rNow").textContent=(+r.toPrecision(3))+" AU, "+(visViva(r,a,M)*AUYR_KMS).toFixed(1)+" km/s";
+}
+
+// ---------- launch mode: integrate the orbit numerically ----------
+let sim=null;
+function lstate(){
+  const f=+vS.value, vc=TAU;                      // circular speed at 1 AU around 1 Msun is 2 pi AU/yr
+  const v=f*vc, eps=v*v/2-4*Math.PI*Math.PI, e=Math.abs(f*f-1);
+  return {f,v,eps,e,a:eps<0?-4*Math.PI*Math.PI/(2*eps):Infinity};
+}
+function resetSim(){ const s=lstate(); sim={x:1,y:0,vx:0,vy:s.v,trail:[]}; }
+function stepSim(dt){
+  const GM=4*Math.PI*Math.PI;
+  let left=dt;
+  while(left>0){
+    const r=Math.hypot(sim.x,sim.y), h=Math.min(left,0.004*Math.pow(r,1.5));
+    let ax=-GM*sim.x/r**3, ay=-GM*sim.y/r**3;
+    sim.vx+=ax*h/2; sim.vy+=ay*h/2; sim.x+=sim.vx*h; sim.y+=sim.vy*h;
+    const r2=Math.hypot(sim.x,sim.y); ax=-GM*sim.x/r2**3; ay=-GM*sim.y/r2**3;
+    sim.vx+=ax*h/2; sim.vy+=ay*h/2; left-=h;
+  }
+  sim.trail.push([sim.x,sim.y]); if(sim.trail.length>400) sim.trail.shift();
+  if(Math.hypot(sim.x,sim.y)>40) resetSim();
+}
+function drawLaunch(){
+  const s=lstate();
+  svg.textContent=""; svg.appendChild(arrowDefs());
+  // view: fit the predicted orbit, capped so escapes and huge ellipses stay readable
+  const far=s.eps<0?Math.min(s.a*(1+s.e),6):6, near=s.f<1?1:1;
+  const ymax=s.eps<0?Math.min(s.a*Math.sqrt(1-s.e*s.e),4):4;
+  const V=view=s.f<1?fitView(-1,1,-Math.max(ymax,0.6),Math.max(ymax,0.6)):fitView(-far,near,-ymax,ymax);
+  const g=el("g",{"clip-path":"url(#oc)"}); svg.appendChild(g);
+  // reference circle at 1 AU
+  g.appendChild(el("circle",{cx:V.X(0),cy:V.Y(0),r:V.s,fill:"none",stroke:"#7f95b0","stroke-dasharray":"3 5","stroke-opacity":0.6}));
+  // predicted path: conic with the launch point at peri- (f>=1) or apo-apsis (f<1)
+  const p=1*(1+(s.f>=1?s.e:-s.e)), sgn=s.f>=1?1:-1;
+  let d="", pen=false;
+  for(let j=0;j<=720;j++){
+    const th=-Math.PI+TAU*j/720, den=1+sgn*s.e*Math.cos(th);
+    if(den<=0.02){ pen=false; continue; }
+    const r=p/den; if(r>60){ pen=false; continue; }
+    d+=(pen?"L":"M")+V.X(r*Math.cos(th)).toFixed(1)+" "+V.Y(r*Math.sin(th)).toFixed(1); pen=true;
+  }
+  g.appendChild(el("path",{d,fill:"none",stroke:s.eps>=0?"#e07a5f":"#e9eef4","stroke-width":1.4,"stroke-dasharray":"6 4","stroke-opacity":0.8}));
+  sun(g,V,1);
+  // launch arrow
+  const L=40*s.f;
+  g.appendChild(el("line",{x1:V.X(1),y1:V.Y(0),x2:V.X(1),y2:V.Y(0)-L,stroke:"#4cc9f0","stroke-width":2.2,"marker-end":"url(#ar)"}));
+  g.appendChild(txt({x:V.X(1)+8,y:V.Y(0)+16,fill:"#a9bbcf","font-size":11,"font-family":MONO},"launch point"));
+  gDyn=el("g",{}); g.appendChild(gDyn);
+  // speed gauge on the right
+  const gx0=KX0-20, gx1=KX1, gy=200, xv=f=>gx0+(f-0.3)/1.4*(gx1-gx0);
+  svg.appendChild(txt({x:(gx0+gx1)/2,y:gy-70,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Launch speed at 1 AU"));
+  const bands=[[0.3,1,"#5b8dd9","falls inward"],[1,Math.SQRT2,"#2a9d8f","ellipse"],[Math.SQRT2,1.7,"#e07a5f","escapes"]];
+  for(const [a,b,c,l] of bands){
+    svg.appendChild(el("rect",{x:xv(a),y:gy-14,width:xv(b)-xv(a),height:28,fill:c,"fill-opacity":0.55}));
+    svg.appendChild(txt({x:(xv(a)+xv(b))/2,y:gy+34,fill:c,"font-size":11,"text-anchor":"middle","font-family":MONO},l));
+  }
+  for(const [f,l] of [[1,"circular\n29.8 km/s"],[Math.SQRT2,"escape\n42.1 km/s"]]){
+    svg.appendChild(el("line",{x1:xv(f),x2:xv(f),y1:gy-22,y2:gy+22,stroke:"#fff","stroke-width":1.5}));
+    l.split("\n").forEach((t,i)=>svg.appendChild(txt({x:xv(f),y:gy-40+i*13,fill:"#e9eef4","font-size":10.5,"text-anchor":"middle","font-family":MONO},t)));
+  }
+  svg.appendChild(el("path",{d:`M${xv(s.f)} ${gy+14}l-7 12h14z`,fill:"#ffd166"}));
+  svg.appendChild(el("path",{d:`M${xv(s.f)} ${gy-14}l-7 -12h14z`,fill:"#ffd166"}));
+}
+function dynLaunch(){
+  gDyn.textContent="";
+  const V=view;
+  if(sim.trail.length>1){
+    let d=""; sim.trail.forEach(([x,y],i)=>d+=(i?"L":"M")+V.X(x).toFixed(1)+" "+V.Y(y).toFixed(1));
+    gDyn.appendChild(el("path",{d,fill:"none",stroke:"#ffd166","stroke-width":2,"stroke-opacity":0.8}));
+  }
+  gDyn.appendChild(el("circle",{cx:V.X(sim.x),cy:V.Y(sim.y),r:6,fill:"#5b8dd9",stroke:"#fff","stroke-width":1.5}));
+  const r=Math.hypot(sim.x,sim.y), v=Math.hypot(sim.vx,sim.vy);
+  document.getElementById("rNow").textContent=(+r.toPrecision(3))+" AU, "+(v*AUYR_KMS).toFixed(1)+" km/s";
+}
+
+// ---------- readouts ----------
+function fmtP(P){ return P<0.1?(P*365.25).toPrecision(3)+" days":P<1000?(+P.toPrecision(3))+" years":Math.round(P).toLocaleString()+" years"; }
+function update(){
+  const ro=document.getElementById("readouts"), note=document.getElementById("note");
+  if(mode==="kep"){
+    const a=A(), e=E(), M=MST(), P=Math.pow(a,1.5)/Math.sqrt(M), q=a*(1-e), Q=a*(1+e);
+    document.getElementById("av").textContent=(+a.toPrecision(3))+" AU";
+    document.getElementById("ev").textContent=e.toFixed(3);
+    document.getElementById("Mv").textContent=M.toFixed(2)+" M☉";
+    ro.innerHTML=`<span>period <b>${fmtP(P)}</b></span><span>closest <b>${+q.toPrecision(3)} AU</b></span><span>farthest <b>${+Q.toPrecision(3)} AU</b></span>`+
+      `<span>speed range <b>${(visViva(Q,a,M)*AUYR_KMS).toFixed(1)} to ${(visViva(q,a,M)*AUYR_KMS).toFixed(1)} km/s</b></span><span>now <b id="rNow"></b></span>`+
+      `<span>P² / a³ <b>${(P*P/(a*a*a)).toFixed(3)}</b></span>`;
+    const ratio=visViva(q,a,M)/visViva(Q,a,M);
+    note.textContent=e<0.01?"This orbit is (almost) a circle, so the planet moves at a steady speed and every slice is the same shape."
+      :`At closest approach the planet moves ${ratio.toFixed(ratio<10?2:0)} times faster than at its farthest point. The slices near the star are short and fat, those far away long and thin, but they all have the same area.`+
+       (Math.abs(M-1)>0.01?` Around a ${M.toFixed(2)} M☉ star the same orbit takes ${Math.sqrt(1/M).toFixed(2)} times as long as it would around the Sun.`:"");
+  }else{
+    const s=lstate();
+    document.getElementById("vlv").textContent=(s.v*AUYR_KMS).toFixed(1)+" km/s ("+s.f.toFixed(2)+"×)";
+    const bound=s.eps<0;
+    ro.innerHTML=`<span>orbit <b>${Math.abs(s.f-1)<0.003?"circle":bound?"ellipse":Math.abs(s.f-Math.SQRT2)<0.004?"parabola (just escapes)":"hyperbola (escapes)"}</b></span>`+
+      `<span>eccentricity <b>${s.e.toFixed(2)}</b></span>`+(bound?`<span>period <b>${fmtP(Math.pow(s.a,1.5))}</b></span><span>farthest <b>${+(s.a*(1+s.e)).toPrecision(3)} AU</b></span>`:"")+
+      `<span>now <b id="rNow"></b></span>`;
+    note.textContent=Math.abs(s.f-1)<0.003?"Exactly the circular speed: gravity bends the path just enough to keep the planet the same distance from the star."
+      :s.f<1?"Too slow for a circle: gravity pulls the planet inward, it speeds up as it falls, then swings back out to where it started. The launch point is the farthest point of the orbit."
+      :bound?"Faster than circular: the planet climbs outward, slowing as it goes, then falls back. The launch point is now the closest point of the orbit."
+      :"At or above escape speed the planet has enough energy to climb out of the star's gravity completely. It slows down but never stops, and never comes back.";
+  }
+  for(const b of document.querySelectorAll("#presets .pill")) b.classList.toggle("on",Math.abs(+b.dataset.a/A()-1)<0.005&&Math.abs(+b.dataset.e-E())<0.002&&Math.abs(MST()-1)<0.01);
+  for(const b of document.querySelectorAll("#lpresets .pill")) b.classList.toggle("on",Math.abs(+b.dataset.f-(+vS.value))<0.004);
+}
+function rebuild(){
+  if(mode==="kep"){ drawKep(); update(); dynKep(); }
+  else { resetSim(); drawLaunch(); update(); dynLaunch(); }
+}
+
+// ---------- animation ----------
+function frame(now){
+  const dt=Math.min((now-last)/1000,0.1); last=now;
+  if(playing){
+    if(mode==="kep"){ phase=(phase+dt/7)%1; dynKep(); }
+    else { stepSim(dt*0.3); dynLaunch(); }
+  }
+  requestAnimationFrame(frame);
+}
+const playBtn=document.getElementById("play");
+playBtn.addEventListener("click",()=>{ playing=!playing; playBtn.innerHTML=playing?"&#10074;&#10074; Pause":"&#9654; Play"; });
+
+// ---------- controls ----------
+for(const t of document.querySelectorAll(".tab")) t.addEventListener("click",()=>{
+  mode=t.dataset.m;
+  for(const x of document.querySelectorAll(".tab")) x.classList.toggle("on",x===t);
+  for(const x of document.querySelectorAll(".kep")) x.classList.toggle("hide",mode!=="kep");
+  for(const x of document.querySelectorAll(".launch")) x.classList.toggle("hide",mode!=="launch");
+  rebuild();
+});
+const pr=document.getElementById("presets");
+for(const [n,a,e] of PRESETS){ const b=document.createElement("button"); b.className="pill"; b.textContent=n; b.dataset.a=a; b.dataset.e=e;
+  b.addEventListener("click",()=>{ aS.value=Math.log10(a); eS.value=e; MS.value=1; phase=0; rebuild(); }); pr.appendChild(b); }
+const lp=document.getElementById("lpresets");
+for(const [n,f] of LPRESETS){ const b=document.createElement("button"); b.className="pill"; b.textContent=n; b.dataset.f=f;
+  b.addEventListener("click",()=>{ vS.value=f; rebuild(); }); lp.appendChild(b); }
+for(const c of [aS,eS,MS,vS,tSec,tFoc,tVel]) c.addEventListener("input",rebuild);
+
+aS.value=Math.log10(1.524); eS.value=0.4; MS.value=1; vS.value=1.25;
+rebuild();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

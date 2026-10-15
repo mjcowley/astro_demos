@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Celestial Sphere Explorer</title>
+<style>
+  :root{
+    --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
+    --panel:#0d1826; --panel-edge:#22354c;
+    --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e;
+    --equ:#4cc9f0; --ecl:#f4a261; --hor:#5fbf7f;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f6f8;padding:16px 8px}
+  .app{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 18px 10px}
+  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.01em}
+  header .sub{font-size:12px;color:var(--muted)}
+  .plotwrap{background:var(--panel);border-top:1px solid var(--panel-edge);border-bottom:1px solid var(--panel-edge)}
+  svg{display:block;width:100%;height:auto;touch-action:none}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:12px 18px 2px;font-size:13px}
+  .presets .lbl{color:var(--muted);margin-right:2px}
+  .pill{font:inherit;font-size:12.5px;padding:5px 11px;border:1px solid var(--line);background:#fff;border-radius:99px;cursor:pointer;color:var(--ink)}
+  .pill:hover{border-color:var(--accent)}
+  .pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .controls{padding:8px 18px 4px;display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center}
+  .btn{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:6px;cursor:pointer;min-width:84px}
+  .sliders{flex:1;min-width:280px;display:grid;grid-template-columns:90px 1fr 140px;gap:2px 14px;align-items:center;font-size:13px}
+  .sliders .v{font-family:var(--mono);font-size:12.5px}
+  input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+  .toggles{display:flex;gap:14px;flex-wrap:wrap;padding:4px 18px 6px;font-size:13px;color:var(--ink)}
+  .toggles label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .readouts{display:flex;gap:10px 24px;flex-wrap:wrap;padding:4px 18px 10px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .readouts b{color:var(--ink);font-weight:600}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  .tablewrap{padding:0 18px 6px;overflow-x:auto}
+  th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}
+  th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+  td.num{font-family:var(--mono);white-space:nowrap}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:#f2f6fa}
+  tbody tr.on{background:#e8f2f0}
+  .tag{display:inline-block;padding:1px 8px;border-radius:99px;font-size:11.5px;color:#fff}
+  .hint{padding:4px 18px 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  footer{padding:10px 18px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+  @media (max-width:600px){
+    header{flex-direction:column;gap:2px}
+    .sliders{grid-template-columns:1fr 120px} .sliders .lab{grid-column:1/-1;margin-top:4px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Celestial Sphere Explorer</h1>
+    <div class="sub">See how your latitude and the time decide which stars you can see</div>
+  </header>
+
+  <div class="plotwrap"><svg id="plot" viewBox="0 0 920 470" role="img" aria-label="Celestial sphere diagram and the sky as seen by the observer"></svg></div>
+
+  <div class="presets" id="places"><span class="lbl">Latitude:</span></div>
+
+  <div class="controls">
+    <button class="btn" id="play">&#9654; Play</button>
+    <div class="sliders">
+      <span class="lab">Latitude</span><input id="lat" type="range" min="-90" max="90" step="0.5" aria-label="Latitude"><span class="v" id="latv"></span>
+      <span class="lab">Date</span><input id="day" type="range" min="1" max="365" step="1" aria-label="Date"><span class="v" id="dayv"></span>
+      <span class="lab">Time</span><input id="time" type="range" min="0" max="24" step="any" aria-label="Local time"><span class="v" id="timev"></span>
+    </div>
+  </div>
+
+  <div class="toggles">
+    <label><input id="tEqu" type="checkbox" checked> Celestial equator</label>
+    <label><input id="tEcl" type="checkbox" checked> Ecliptic</label>
+    <label><input id="tCirc" type="checkbox" checked> Circumpolar limits</label>
+    <label><input id="tLines" type="checkbox" checked> Constellation lines</label>
+    <label><input id="tTrails" type="checkbox"> Star trails (3 hours)</label>
+  </div>
+
+  <div class="readouts">
+    <span>visible pole <b id="rPole"></b></span>
+    <span>never sets <b id="rCirc"></b></span>
+    <span>never rises <b id="rNever"></b></span>
+    <span>Sun's altitude <b id="rSun"></b></span>
+    <span>sidereal time <b id="rLST"></b></span>
+  </div>
+
+  <div class="tablewrap">
+    <table aria-label="Bright stars">
+      <thead><tr><th>Star</th><th>Declination</th><th>Altitude now</th><th>Highest it gets</th><th>From here it</th></tr></thead>
+      <tbody id="stab"></tbody>
+    </table>
+  </div>
+
+  <div class="hint">
+    <b>Things to try:</b> click a star in the table to draw its daily path. Drag the sphere to turn it.
+    Notice that the celestial pole always sits at an altitude equal to your latitude, so stars within that angle of the pole never set (they're <i>circumpolar</i>).
+    From Brisbane the Southern Cross only just makes it; from the South Pole half the sky never rises at all, while from the equator every star rises and sets.
+    Press Play and watch the whole sky turn about the celestial pole once a day.
+  </div>
+
+  <footer>
+    Star positions are J2000. Time is local solar time, so the Sun crosses the meridian at noon; real clock time also depends on your longitude within the time zone and on daylight saving. The Sun's position uses a circular-orbit approximation. Refraction and precession are ignored.
+    <br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.
+  </footer>
+</div>
+
+<script>
+"use strict";
+const D=Math.PI/180, EPS=23.44*D;
+
+// name, RA (h), Dec (deg), magnitude
+const STARS=[
+  ["Sirius",6.752,-16.72,-1.46],["Canopus",6.399,-52.70,-0.74],["α Centauri",14.660,-60.83,-0.27],
+  ["Arcturus",14.261,19.18,-0.05],["Vega",18.616,38.78,0.03],["Capella",5.278,46.00,0.08],["Rigel",5.242,-8.20,0.13],
+  ["Procyon",7.655,5.22,0.34],["Achernar",1.629,-57.24,0.46],["Betelgeuse",5.919,7.41,0.50],["β Centauri",14.064,-60.37,0.61],
+  ["Altair",19.846,8.87,0.76],["Acrux",12.443,-63.10,0.76],["Aldebaran",4.599,16.51,0.86],["Antares",16.490,-26.43,0.96],
+  ["Spica",13.420,-11.16,0.97],["Pollux",7.755,28.03,1.14],["Fomalhaut",22.961,-29.62,1.16],["Deneb",20.690,45.28,1.25],
+  ["Mimosa",12.795,-59.69,1.25],["Regulus",10.139,11.97,1.35],["Gacrux",12.519,-57.11,1.59],["Bellatrix",5.419,6.35,1.64],
+  ["Alnilam",5.604,-1.20,1.69],["Alnitak",5.679,-1.94,1.77],["Alioth",12.900,55.96,1.77],["Dubhe",11.062,61.75,1.79],
+  ["Alkaid",13.792,49.31,1.86],["Polaris",2.530,89.26,1.98],["Saiph",5.796,-9.67,2.07],["Mintaka",5.533,-0.30,2.23],
+  ["Mizar",13.399,54.93,2.23],["Merak",11.031,56.38,2.37],["Phecda",11.897,53.69,2.44],["Imai",12.252,-58.75,2.79],
+  ["Megrez",12.257,57.03,3.31],
+].map(([name,ra,dec,mag])=>({name,ra,dec,mag}));
+const S=Object.fromEntries(STARS.map(s=>[s.name,s]));
+const LABELLED=new Set(["Sirius","Canopus","α Centauri","Arcturus","Vega","Rigel","Betelgeuse","Achernar","Acrux","Antares","Polaris","Aldebaran","Spica","Altair","Fomalhaut","Capella","Deneb","Regulus"]);
+const LINES=[  // Southern Cross, Pointers, Orion, Big Dipper
+  ["Acrux","Gacrux"],["Mimosa","Imai"],["α Centauri","β Centauri"],
+  ["Betelgeuse","Bellatrix"],["Bellatrix","Mintaka"],["Betelgeuse","Alnitak"],["Mintaka","Alnilam"],["Alnilam","Alnitak"],
+  ["Mintaka","Rigel"],["Alnitak","Saiph"],
+  ["Dubhe","Merak"],["Merak","Phecda"],["Phecda","Megrez"],["Megrez","Dubhe"],["Megrez","Alioth"],["Alioth","Mizar"],["Mizar","Alkaid"],
+];
+const TABLE=["Polaris","Acrux","α Centauri","Canopus","Achernar","Sirius","Betelgeuse","Antares","Vega","Arcturus"];
+const PLACES=[["North Pole",90],["London",51.5],["Equator",0],["Brisbane",-27.5],["Hobart",-42.9],["South Pole",-90]];
+
+// faint background stars, fixed seed
+const FIELD=(()=>{ let s=4242; const r=()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; };
+  return Array.from({length:420},()=>({ra:24*r(), dec:Math.asin(2*r()-1)/D, mag:3.5+2.5*r()})); })();
+
+// ---------- astronomy ----------
+const latS=document.getElementById("lat"), dayS=document.getElementById("day"), timeS=document.getElementById("time");
+const lat=()=>+latS.value*D;
+function sunEq(day){
+  const L=2*Math.PI*(day-80)/365.25;
+  return {ra:((Math.atan2(Math.cos(EPS)*Math.sin(L),Math.cos(L))/D/15)+24)%24, dec:Math.asin(Math.sin(EPS)*Math.sin(L))/D};
+}
+function lst(){ const s=sunEq(+dayS.value); return ((s.ra+(+timeS.value)-12)%24+24)%24; }
+function hor(raH,decDeg,LST,phi){   // horizon frame: E, N, U
+  const H=(LST-raH)*15*D, d=decDeg*D;
+  return {E:-Math.cos(d)*Math.sin(H),
+          N:Math.cos(phi)*Math.sin(d)-Math.sin(phi)*Math.cos(d)*Math.cos(H),
+          U:Math.sin(phi)*Math.sin(d)+Math.cos(phi)*Math.cos(d)*Math.cos(H)};
+}
+const altOf=v=>Math.asin(Math.max(-1,Math.min(1,v.U)))/D;
+
+// ---------- drawing helpers ----------
+const svg=document.getElementById("plot"), NS="http://www.w3.org/2000/svg";
+const MONO='ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace';
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(a,s){const t=el("text",a);t.textContent=s;return t;}
+
+// sphere view: orthographic camera that can be dragged around
+const CX=230, CY=240, R=185;
+let camAz=-35*D, camEl=22*D;
+function proj(v){
+  const x=v.E*Math.cos(camAz)-v.N*Math.sin(camAz), y=v.E*Math.sin(camAz)+v.N*Math.cos(camAz);
+  return {x:CX+R*x, y:CY-R*(v.U*Math.cos(camEl)+y*Math.sin(camEl)), depth:-y*Math.cos(camEl)+v.U*Math.sin(camEl)};
+}
+// all-sky view: zenith in the centre, north up, east on the left (as when you look up)
+const SKX=690, SKY=240, SR=200;
+function sky(v){
+  const alt=altOf(v), az=Math.atan2(v.E,v.N), r=(90-alt)/90*SR;
+  return {x:SKX-r*Math.sin(az), y:SKY-r*Math.cos(az), alt};
+}
+
+// split a curve on the sphere into front/back and above/below-horizon runs
+function sphereCurve(vs,col,width,gBack,gFront,closed){
+  const n=vs.length, P=vs.map(proj), segs=closed?n:n-1;
+  let run=null;
+  const flush=()=>{ if(!run) return;
+    const front=run.front, up=run.up;
+    (front?gFront:gBack).appendChild(el("path",{d:run.d,fill:"none",stroke:col,"stroke-width":width,
+      "stroke-opacity":(front?1:0.45)*(up?1:0.6),"stroke-dasharray":up?"":"4 4"}));
+    run=null; };
+  for(let i=0;i<segs;i++){
+    const a=P[i], b=P[(i+1)%n], va=vs[i], vb=vs[(i+1)%n];
+    const front=(a.depth+b.depth)>=0, up=(va.U+vb.U)>=0;
+    if(!run||run.front!==front||run.up!==up){ flush(); run={front,up,d:`M${a.x.toFixed(1)} ${a.y.toFixed(1)}`}; }
+    run.d+=`L${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+  }
+  flush();
+}
+function skyCurve(vs,col,width,g,dash){
+  let d="", pen=false;
+  for(const v of vs){
+    if(v.U<0){ pen=false; continue; }
+    const p=sky(v); d+=(pen?"L":"M")+p.x.toFixed(1)+" "+p.y.toFixed(1); pen=true;
+  }
+  if(d) g.appendChild(el("path",{d,fill:"none",stroke:col,"stroke-width":width,"stroke-dasharray":dash||""}));
+}
+const circleDec=(dec,LST,phi)=>Array.from({length:121},(_,i)=>hor(i*24/120,dec,LST,phi));
+const eclipticPts=(LST,phi)=>Array.from({length:121},(_,i)=>{ const L=i*3*D;
+  const ra=((Math.atan2(Math.cos(EPS)*Math.sin(L),Math.cos(L))/D/15)+24)%24, dec=Math.asin(Math.sin(EPS)*Math.sin(L))/D;
+  return hor(ra,dec,LST,phi); });
+const starR=m=>Math.max(1.1,3.6-0.75*m);
+
+let selected="Acrux";
+
+function draw(){
+  const phi=lat(), LST=lst(), sun=sunEq(+dayS.value), sv=hor(sun.ra,sun.dec,LST,phi), sunAlt=altOf(sv);
+  const limit=90-Math.abs(+latS.value);
+  svg.textContent="";
+  const defs=el("defs",{});
+  const cp=el("clipPath",{id:"skyclip"}); cp.appendChild(el("circle",{cx:SKX,cy:SKY,r:SR})); defs.appendChild(cp);
+  svg.appendChild(defs);
+
+  // ===== sphere =====
+  const gBack=el("g",{}), gDisc=el("g",{}), gFront=el("g",{});
+  svg.appendChild(el("circle",{cx:CX,cy:CY,r:R,fill:"#101f33",stroke:"#2c4566","stroke-width":1}));
+  svg.appendChild(gBack); svg.appendChild(gDisc); svg.appendChild(gFront);
+  svg.appendChild(txt({x:CX,y:17,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"The celestial sphere (drag to turn)"));
+
+  // horizon plane
+  const hz=Array.from({length:97},(_,i)=>{ const a=i/96*2*Math.PI; return {E:Math.sin(a),N:Math.cos(a),U:0}; });
+  gDisc.appendChild(el("path",{d:hz.map((v,i)=>{const p=proj(v);return (i?"L":"M")+p.x.toFixed(1)+" "+p.y.toFixed(1);}).join("")+"Z",
+    fill:"#2f6b4a","fill-opacity":0.42,stroke:"var(--hor)","stroke-width":1.5}));
+  for(const [lab,v] of [["N",{E:0,N:1.09,U:0}],["S",{E:0,N:-1.09,U:0}],["E",{E:1.09,N:0,U:0}],["W",{E:-1.09,N:0,U:0}]]){
+    const p=proj(v); (p.depth>=0?gFront:gBack).appendChild(txt({x:p.x,y:p.y+4,fill:"#9fe0b4","font-size":12,"font-weight":650,"text-anchor":"middle","font-family":MONO,"fill-opacity":p.depth>=0?1:0.5},lab));
+  }
+  // zenith and observer
+  const zp=proj({E:0,N:0,U:1}), op=proj({E:0,N:0,U:0});
+  gFront.appendChild(el("line",{x1:op.x,y1:op.y,x2:zp.x,y2:zp.y,stroke:"#7f95b0","stroke-width":1,"stroke-dasharray":"2 4"}));
+  gFront.appendChild(txt({x:zp.x+6,y:zp.y-4,fill:"#a9bbcf","font-size":11,"font-family":MONO},"zenith"));
+  gFront.appendChild(el("circle",{cx:op.x,cy:op.y,r:3.5,fill:"#fff"}));
+  gFront.appendChild(txt({x:op.x+6,y:op.y+14,fill:"#fff","font-size":11,"font-family":MONO},"you"));
+
+  // celestial poles and axis
+  const ncp=hor(0,90,LST,phi), scp=hor(0,-90,LST,phi);
+  sphereCurve([scp,ncp],"#c3d2e2",1.3,gBack,gFront,false);
+  for(const [lab,v] of [["NCP",ncp],["SCP",scp]]){
+    const p=proj(v); (p.depth>=0?gFront:gBack).appendChild(el("circle",{cx:p.x,cy:p.y,r:3,fill:"#c3d2e2"}));
+    (p.depth>=0?gFront:gBack).appendChild(txt({x:p.x+7,y:p.y+4,fill:"#c3d2e2","font-size":11,"font-family":MONO},lab));
+  }
+  // great circles
+  if(tEqu.checked) sphereCurve(circleDec(0,LST,phi),"var(--equ)",1.6,gBack,gFront,true);
+  if(tEcl.checked) sphereCurve(eclipticPts(LST,phi),"var(--ecl)",1.6,gBack,gFront,true);
+  if(tCirc.checked&&limit>0.5&&limit<89.5){
+    const s=Math.sign(+latS.value);   // never-sets circle, then never-rises circle
+    sphereCurve(circleDec(s*limit,LST,phi),"#9d8df1",1,gBack,gFront,true);
+    sphereCurve(circleDec(-s*limit,LST,phi),"#9aa5b1",1,gBack,gFront,true);
+  }
+  // selected star's daily path
+  if(selected){ const st=S[selected]; sphereCurve(circleDec(st.dec,LST,phi),"var(--spec)",1.8,gBack,gFront,true); }
+  // stars on the sphere
+  for(const st of STARS){
+    const v=hor(st.ra,st.dec,LST,phi), p=proj(v), up=v.U>=0;
+    (p.depth>=0?gFront:gBack).appendChild(el("circle",{cx:p.x,cy:p.y,r:starR(st.mag)*0.8,fill:st.name===selected?"#ffd166":"#e9eef4",
+      "fill-opacity":(p.depth>=0?1:0.4)*(up?1:0.45)}));
+  }
+  // the Sun
+  { const p=proj(sv); (p.depth>=0?gFront:gBack).appendChild(el("circle",{cx:p.x,cy:p.y,r:7,fill:"#ffd166",stroke:"#fff3c4","stroke-width":1.5,"fill-opacity":p.depth>=0?1:0.5}));
+    (p.depth>=0?gFront:gBack).appendChild(txt({x:p.x+10,y:p.y+4,fill:"#ffd166","font-size":11,"font-family":MONO},"Sun")); }
+
+  // ===== all-sky view =====
+  const tw=Math.max(0,Math.min(1,(sunAlt+12)/12));   // 0 = night, 1 = day
+  const skyCol=`rgb(${Math.round(8+60*tw)},${Math.round(14+110*tw)},${Math.round(26+170*tw)})`;
+  svg.appendChild(txt({x:SKX-SR,y:17,fill:"#a9bbcf","font-size":12.5,"text-anchor":"start"},"Your sky, looking straight up"));
+  svg.appendChild(el("circle",{cx:SKX,cy:SKY,r:SR,fill:skyCol,stroke:"var(--hor)","stroke-width":1.5}));
+  const g=el("g",{"clip-path":"url(#skyclip)"}); svg.appendChild(g);
+  for(const a of [30,60]) g.appendChild(el("circle",{cx:SKX,cy:SKY,r:(90-a)/90*SR,fill:"none",stroke:"#ffffff","stroke-opacity":0.08}));
+  const starsVisible=sunAlt<-6;
+  if(starsVisible||tw<0.9){
+    const op=1-tw;
+    if(tTrails.checked){
+      for(const st of STARS.concat(FIELD.filter(f=>f.mag<4.2))){
+        const vs=Array.from({length:31},(_,i)=>hor(st.ra,st.dec,LST-3*i/30,phi));
+        skyCurve(vs,`rgba(233,238,244,${0.35*op})`,st.mag<2?1.2:0.7,g);
+      }
+    }
+    for(const f of FIELD){ const v=hor(f.ra,f.dec,LST,phi); if(v.U<0) continue; const p=sky(v);
+      g.appendChild(el("circle",{cx:p.x,cy:p.y,r:starR(f.mag)*0.55,fill:"#cfd8e3","fill-opacity":0.55*op})); }
+    if(tLines.checked) for(const [a,b] of LINES){
+      const va=hor(S[a].ra,S[a].dec,LST,phi), vb=hor(S[b].ra,S[b].dec,LST,phi); if(va.U<0||vb.U<0) continue;
+      const pa=sky(va), pb=sky(vb);
+      g.appendChild(el("line",{x1:pa.x,y1:pa.y,x2:pb.x,y2:pb.y,stroke:"#7fa6d6","stroke-opacity":0.6*op,"stroke-width":1}));
+    }
+    for(const st of STARS){ const v=hor(st.ra,st.dec,LST,phi); if(v.U<0) continue; const p=sky(v);
+      g.appendChild(el("circle",{cx:p.x,cy:p.y,r:starR(st.mag),fill:st.name===selected?"#ffd166":"#f4f7fb","fill-opacity":op}));
+      if(LABELLED.has(st.name)) g.appendChild(txt({x:p.x+6,y:p.y-5,fill:"#c3d2e2","fill-opacity":0.9*op,"font-size":10.5,"font-family":MONO},st.name==="α Centauri"?"α Cen":st.name)); }
+  }
+  if(tEqu.checked) skyCurve(circleDec(0,LST,phi),"var(--equ)",1.4,g);
+  if(tEcl.checked) skyCurve(eclipticPts(LST,phi),"var(--ecl)",1.4,g);
+  if(tCirc.checked&&limit>0.5&&limit<89.5){ const s=Math.sign(+latS.value); skyCurve(circleDec(s*limit,LST,phi),"#9d8df1",1,g,"4 4"); }
+  if(selected){ const st=S[selected]; skyCurve(circleDec(st.dec,LST,phi),"var(--spec)",1.6,g,"5 4"); }
+  for(const [lab,v] of [["NCP",ncp],["SCP",scp]]) if(v.U>=0){ const p=sky(v);
+    g.appendChild(el("path",{d:`M${p.x-6} ${p.y}H${p.x+6}M${p.x} ${p.y-6}V${p.y+6}`,stroke:"#c3d2e2","stroke-width":1.4}));
+    g.appendChild(txt({x:p.x+8,y:p.y+14,fill:"#c3d2e2","font-size":11,"font-family":MONO},lab)); }
+  if(sv.U>=0){ const p=sky(sv); g.appendChild(el("circle",{cx:p.x,cy:p.y,r:10,fill:"#ffd166",stroke:"#fff3c4","stroke-width":2})); }
+  if(sunAlt>-6) g.appendChild(txt({x:SKX,y:SKY+SR*0.55,fill:"#fff","font-size":12.5,"text-anchor":"middle","fill-opacity":0.9},
+    sunAlt>0?"Daytime: the Sun's glare hides the stars":"Twilight: only the brightest stars show"));
+  for(const [lab,az] of [["N",0],["E",90],["S",180],["W",270]]){
+    const a=az*D, x=SKX-(SR+13)*Math.sin(a), y=SKY-(SR+13)*Math.cos(a)+4;
+    svg.appendChild(txt({x,y,fill:"#9fe0b4","font-size":12,"font-weight":650,"text-anchor":"middle","font-family":MONO},lab));
+  }
+  svg.appendChild(txt({x:912,y:462,fill:"#7f95b0","font-size":10.5,"text-anchor":"end","font-family":MONO},"edge = horizon"));
+}
+
+// ---------- readouts ----------
+const fmtDeg=v=>(v<0?"−":"+")+Math.abs(v).toFixed(1)+"°";
+function fmtTime(h){ const hh=Math.floor(h)%24, mm=Math.floor((h-Math.floor(h))*60); const ap=hh<12?"am":"pm";
+  return ((hh%12)||12)+":"+String(mm).padStart(2,"0")+" "+ap; }
+function fmtDay(d){ return new Date(Date.UTC(2025,0,d)).toLocaleDateString("en-AU",{day:"numeric",month:"short",timeZone:"UTC"}); }
+const TAGS={up:["#2a9d8f","rises and sets"],circ:["#7b61c9","never sets"],never:["#9aa5b1","never rises"]};
+function update(){
+  const p=+latS.value, phi=lat(), LST=lst(), sun=sunEq(+dayS.value), sunAlt=altOf(hor(sun.ra,sun.dec,LST,phi));
+  const limit=90-Math.abs(p);
+  document.getElementById("latv").textContent=(p<0?Math.abs(p)+"° S":p>0?p+"° N":"0°");
+  document.getElementById("dayv").textContent=fmtDay(+dayS.value);
+  document.getElementById("timev").textContent=fmtTime(+timeS.value);
+  const pole=p>0?"NCP":"SCP", half=p>0?"northern":"southern", other=p>0?"southern":"northern";
+  document.getElementById("rPole").textContent=p===0?"both on the horizon":Math.abs(p)===90?pole+" straight overhead":
+    pole+" at "+Math.abs(p).toFixed(1)+"° up, due "+(p>0?"north":"south");
+  document.getElementById("rCirc").textContent=p===0?"none":limit===0?"the whole "+half+" sky":"δ "+(p>0?"> +":"< −")+limit.toFixed(1)+"°";
+  document.getElementById("rNever").textContent=p===0?"none":limit===0?"the whole "+other+" sky":"δ "+(p>0?"< −":"> +")+limit.toFixed(1)+"°";
+  document.getElementById("rSun").textContent=fmtDeg(sunAlt);
+  const h=Math.floor(LST), m=Math.floor((LST-h)*60);
+  document.getElementById("rLST").textContent=h+"h "+String(m).padStart(2,"0")+"m";
+  const tb=document.getElementById("stab"); tb.textContent="";
+  for(const n of TABLE){
+    const st=S[n], alt=altOf(hor(st.ra,st.dec,LST,phi)), maxAlt=90-Math.abs(p-st.dec);
+    const sg=Math.sign(p), k=sg!==0&&sg*st.dec>limit?"circ":sg!==0&&-sg*st.dec>limit?"never":"up";
+    const tr=document.createElement("tr"); if(n===selected) tr.className="on";
+    tr.innerHTML=`<td>${n}</td><td class="num">${fmtDeg(st.dec)}</td><td class="num">${alt>=0?fmtDeg(alt):'<span style="color:var(--muted)">below horizon</span>'}</td>`+
+      `<td class="num">${maxAlt>0?maxAlt.toFixed(1)+"°":"–"}</td><td><span class="tag" style="background:${TAGS[k][0]}">${TAGS[k][1]}</span></td>`;
+    tr.addEventListener("click",()=>{ selected=selected===n?null:n; render(); });
+    tb.appendChild(tr);
+  }
+  for(const b of document.querySelectorAll("#places .pill")) b.classList.toggle("on",+b.dataset.l===p);
+}
+function render(){ draw(); update(); }
+
+// ---------- interaction ----------
+const tEqu=document.getElementById("tEqu"), tEcl=document.getElementById("tEcl"), tCirc=document.getElementById("tCirc"),
+      tLines=document.getElementById("tLines"), tTrails=document.getElementById("tTrails");
+for(const c of [latS,dayS,timeS,tEqu,tEcl,tCirc,tLines,tTrails]) c.addEventListener("input",render);
+const places=document.getElementById("places");
+for(const [n,l] of PLACES){ const b=document.createElement("button"); b.className="pill"; b.textContent=n; b.dataset.l=l;
+  b.addEventListener("click",()=>{ latS.value=l; render(); }); places.appendChild(b); }
+
+let drag=null;
+svg.addEventListener("pointerdown",e=>{
+  const r=svg.getBoundingClientRect(), x=(e.clientX-r.left)/r.width*920;
+  if(x>460) return;
+  drag={x:e.clientX,y:e.clientY,az:camAz,el:camEl,w:r.width}; svg.setPointerCapture(e.pointerId);
+});
+svg.addEventListener("pointermove",e=>{
+  if(!drag) return;
+  const k=920/drag.w;
+  camAz=drag.az-(e.clientX-drag.x)*k*0.008;
+  camEl=Math.max(-5*D,Math.min(85*D,drag.el+(e.clientY-drag.y)*k*0.008));
+  draw();
+});
+svg.addEventListener("pointerup",()=>drag=null);
+svg.addEventListener("pointercancel",()=>drag=null);
+
+let playing=false, last=0;
+const playBtn=document.getElementById("play");
+function tick(now){
+  if(!playing) return;
+  const dt=Math.min((now-last)/1000,0.1); last=now;
+  timeS.value=((+timeS.value+dt*1.5)%24); render();
+  requestAnimationFrame(tick);
+}
+playBtn.addEventListener("click",()=>{ playing=!playing; playBtn.innerHTML=playing?"&#10074;&#10074; Pause":"&#9654; Play";
+  if(playing){ last=performance.now(); requestAnimationFrame(tick); } });
+
+latS.value=-27.5; dayS.value=135; timeS.value=21;   // Brisbane, mid-May, 9 pm: Crux high in the south
+render();
+</script>
+</body>
+</html>

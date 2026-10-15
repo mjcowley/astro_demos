@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stellar Parallax</title>
+<style>
+  :root{
+    --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
+    --panel:#0d1826; --panel-edge:#22354c;
+    --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e; --p1:#4cc9f0; --p2:#f4a261;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f6f8;padding:16px 8px}
+  .app{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 18px 10px}
+  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.01em}
+  header .sub{font-size:12px;color:var(--muted)}
+  .plotwrap{background:var(--panel);border-top:1px solid var(--panel-edge);border-bottom:1px solid var(--panel-edge)}
+  svg{display:block;width:100%;height:auto}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:12px 18px 2px;font-size:13px}
+  .presets .lbl{color:var(--muted);margin-right:2px}
+  .pill{font:inherit;font-size:12.5px;padding:5px 11px;border:1px solid var(--line);background:#fff;border-radius:99px;cursor:pointer;color:var(--ink)}
+  .pill:hover{border-color:var(--accent)}
+  .pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .controls{padding:8px 18px 4px;display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}
+  .btn{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:6px;cursor:pointer}
+  .btn.ghost{background:#fff;color:var(--accent)}
+  .sliders{flex:1;min-width:280px;display:grid;grid-template-columns:110px 1fr 150px;gap:2px 14px;align-items:center;font-size:13px}
+  .sliders .v{font-family:var(--mono);font-size:12.5px}
+  input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+  .toggles{display:flex;gap:14px;flex-wrap:wrap;padding:4px 18px 6px;font-size:13px;color:var(--ink)}
+  .toggles label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .readouts{display:flex;gap:10px 24px;flex-wrap:wrap;padding:4px 18px 10px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .readouts b{color:var(--ink);font-weight:600}
+  .note{margin:2px 18px 12px;padding:10px 14px;border-left:4px solid var(--accent);background:#f2f6fa;border-radius:0 6px 6px 0;font-size:13.5px;line-height:1.55}
+  .note .m{font-family:var(--mono);font-size:12.5px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  .tablewrap{padding:0 18px 6px;overflow-x:auto}
+  th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}
+  th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+  td.num{font-family:var(--mono);white-space:nowrap}
+  .hint{padding:4px 18px 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  footer{padding:10px 18px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+  @media (max-width:600px){
+    header{flex-direction:column;gap:2px}
+    .sliders{grid-template-columns:1fr 120px} .sliders .lab{grid-column:1/-1;margin-top:4px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Stellar Parallax</h1>
+    <div class="sub">Photograph a nearby star six months apart, measure how far it shifts, and work out its distance</div>
+  </header>
+
+  <div class="plotwrap"><svg id="plot" viewBox="0 0 920 470" role="img" aria-label="Earth's orbit and the view through a telescope"></svg></div>
+
+  <div class="presets" id="stars"><span class="lbl">Star:</span></div>
+
+  <div class="controls">
+    <button class="btn" id="play">&#9654; Play</button>
+    <button class="btn ghost" id="photo">&#128247; Take photo</button>
+    <button class="btn ghost" id="clear">Clear photos</button>
+    <div class="sliders">
+      <span class="lab">Date</span><input id="t" type="range" min="0" max="1" step="any" aria-label="Date"><span class="v" id="tv"></span>
+      <span class="lab" id="dlab">Distance</span><input id="d" type="range" min="0" max="3" step="any" aria-label="Distance"><span class="v" id="dv"></span>
+    </div>
+  </div>
+
+  <div class="toggles">
+    <label><input id="tSeeing" type="checkbox"> Atmospheric blurring (ground-based telescope)</label>
+    <label><input id="tAns" type="checkbox"> Show answer</label>
+  </div>
+
+  <div class="readouts" id="readouts"></div>
+  <div class="note" id="note"></div>
+
+  <div class="tablewrap">
+    <table aria-label="Parallaxes of nearby stars">
+      <thead><tr><th>Star</th><th>Parallax p</th><th>Distance (pc)</th><th>Distance (light years)</th></tr></thead>
+      <tbody id="tab"></tbody>
+    </table>
+  </div>
+
+  <div class="hint">
+    <b>The idea:</b> as the Earth goes around the Sun, a nearby star seems to shift back and forth against much more distant background stars. The <i>parallax angle</i> p is half the total shift.
+    A star with p = 1 arcsecond (1&Prime; = 1/3600 of a degree) is at a distance of 1 <i>parsec</i>, which is where the word comes from: <b>d (pc) = 1 / p (arcsec)</b>. One parsec is 3.26 light years, or about 206,000 AU.
+    Even the nearest star has p &lt; 1&Prime;, smaller than the blurring caused by Earth's atmosphere, which is why the first stellar parallax wasn't measured until 1838. Today the Gaia spacecraft measures parallaxes to about 0.00002&Prime;.
+  </div>
+
+  <footer>
+    The left-hand diagram is not to scale: the nearest star is about 270,000 times further away than the Sun. The star is assumed to lie in the plane of Earth's orbit, so it shifts along a straight line; stars away from that plane trace out a small ellipse. The stars' own motion across the sky (proper motion) is ignored. Parallaxes from Gaia DR3 and Hipparcos, rounded.
+    <br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.
+  </footer>
+</div>
+
+<script>
+"use strict";
+const STARS=[
+  {name:"Proxima Centauri", p:0.7685},
+  {name:"Barnard's Star",   p:0.5465},
+  {name:"Sirius",           p:0.3792},
+  {name:"Procyon",          p:0.2846},
+  {name:"Vega",             p:0.1302},
+  {name:"Mystery star",     p:null},
+];
+const PC_LY=3.2616;
+let star=STARS[0], mystery=0.31, photos=[], playing=false, last=0;
+const tS=document.getElementById("t"), dS=document.getElementById("d"), tSee=document.getElementById("tSeeing"), tAns=document.getElementById("tAns");
+const par=()=>1/Math.pow(10,+dS.value);           // parallax in arcsec from the distance slider (pc)
+const dist=()=>Math.pow(10,+dS.value);
+const offsetAt=(t,p)=>-p*Math.cos(2*Math.PI*t);  // apparent shift (arcsec) along the line of the Earth's orbit
+
+// ---------- drawing ----------
+const svg=document.getElementById("plot"), NS="http://www.w3.org/2000/svg";
+const MONO='ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace';
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(a,s){const t=el("text",a);t.textContent=s;return t;}
+function niceStep(range,n){ const r=range/n, p=Math.pow(10,Math.floor(Math.log10(r))), m=r/p; return (m<1.5?1:m<3?2:m<7?5:10)*p; }
+function fmtAng(a){ const x=Math.abs(a); return x>=0.1?x.toFixed(3)+"″":(x*1000).toFixed(1)+" mas"; }
+function fmtDate(t){ return new Date(Date.UTC(2025,0,1+Math.floor(t*365))).toLocaleDateString("en-AU",{day:"numeric",month:"short",timeZone:"UTC"}); }
+
+// background stars in the telescope field, fixed seed; positions in units of the field half-width
+const BG=(()=>{ let s=99; const r=()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; };
+  return Array.from({length:9},()=>({x:1.7*r()-0.85,y:1.7*r()-0.85,m:r()})); })();
+
+// left: top-down view
+const SX=235, SY=360, OR=62;
+// right: telescope view
+const TX=690, TY=245, TR=190;
+
+function draw(){
+  const p=par(), t=+tS.value, th=2*Math.PI*t, see=tSee.checked;
+  svg.textContent="";
+  const defs=el("defs",{});
+  const cp=el("clipPath",{id:"scope"}); cp.appendChild(el("circle",{cx:TX,cy:TY,r:TR})); defs.appendChild(cp);
+  const half=Math.max(1.6*p,0.25), k=TR/half;        // telescope field half-width (arcsec), px per arcsec
+  // seeing discs: soft blobs about 1 arcsec across
+  for(const [id,c] of [["blob","223,231,241"],["blobN","255,214,201"]]){
+    const rg=el("radialGradient",{id});
+    for(const [o,a] of [[0,0.75],[0.35,0.4],[0.7,0.12],[1,0]]) rg.appendChild(el("stop",{offset:o,"stop-color":`rgb(${c})`,"stop-opacity":a}));
+    defs.appendChild(rg);
+  }
+  const seeR=0.5*k;
+  const mk=el("marker",{id:"ar",viewBox:"0 0 10 10",refX:5,refY:5,markerWidth:6,markerHeight:6,orient:"auto-start-reverse"});
+  mk.appendChild(el("path",{d:"M0 0L10 5L0 10z",fill:"#e9eef4"})); defs.appendChild(mk);
+  svg.appendChild(defs);
+
+  // ===== top-down view =====
+  svg.appendChild(txt({x:SX,y:20,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Seen from above (not to scale)"));
+  const stripY=46;
+  svg.appendChild(el("rect",{x:20,y:stripY-14,width:430,height:28,fill:"#13233a",rx:4}));
+  for(let i=0;i<28;i++){ const x=28+i*15.4+((i*37)%11); svg.appendChild(el("circle",{cx:x,cy:stripY+((i*53)%17)-8,r:1.2+((i*7)%3)*0.4,fill:"#c3d2e2","fill-opacity":0.7})); }
+  svg.appendChild(txt({x:445,y:stripY+28,fill:"#7f95b0","font-size":10.5,"text-anchor":"end","font-family":MONO},"very distant background stars"));
+  const sy=Math.max(SY-OR-40-55*Math.log10(dist()/0.3), stripY+60);  // star's height on the diagram (squashed log scale)
+  svg.appendChild(el("circle",{cx:SX,cy:SY,r:OR,fill:"none",stroke:"#3d5675","stroke-dasharray":"3 4"}));
+  svg.appendChild(el("circle",{cx:SX,cy:SY,r:9,fill:"#ffd166"}));
+  svg.appendChild(txt({x:SX+14,y:SY+4,fill:"#ffd166","font-size":11,"font-family":MONO},"Sun"));
+  const ex2=SX+OR*Math.cos(th), ey2=SY-OR*Math.sin(th);
+  // sight lines from photo positions
+  const sight=(x,y,col,w,op)=>{ const k2=(stripY-y)/(sy-y), xs=x+(SX-x)*k2;
+    svg.appendChild(el("line",{x1:x,y1:y,x2:xs,y2:stripY,stroke:col,"stroke-width":w,"stroke-opacity":op}));
+    svg.appendChild(el("circle",{cx:xs,cy:stripY,r:5,fill:"none",stroke:col,"stroke-width":2,"stroke-opacity":op})); return xs; };
+  photos.forEach((ph,i)=>{ const a=2*Math.PI*ph.t; sight(SX+OR*Math.cos(a),SY-OR*Math.sin(a),i?"var(--p2)":"var(--p1)",1.2,0.8); });
+  sight(ex2,ey2,"#e9eef4",1.4,0.9);
+  svg.appendChild(el("line",{x1:SX,y1:SY,x2:SX,y2:sy,stroke:"#7f95b0","stroke-dasharray":"2 4"}));
+  svg.appendChild(el("circle",{cx:SX,cy:sy,r:6,fill:"#ffb4a2"}));
+  svg.appendChild(txt({x:SX+12,y:sy+4,fill:"#ffb4a2","font-size":11.5,"font-family":MONO},"nearby star"));
+  photos.forEach((ph,i)=>{ const a=2*Math.PI*ph.t; svg.appendChild(el("circle",{cx:SX+OR*Math.cos(a),cy:SY-OR*Math.sin(a),r:5,fill:i?"var(--p2)":"var(--p1)"})); });
+  svg.appendChild(el("circle",{cx:ex2,cy:ey2,r:6,fill:"#5b8dd9",stroke:"#fff","stroke-width":1.5}));
+  svg.appendChild(txt({x:ex2+(Math.cos(th)>=0?10:-10),y:ey2+18,fill:"#a9bbcf","font-size":11,"text-anchor":Math.cos(th)>=0?"start":"end","font-family":MONO},"Earth, "+fmtDate(t)));
+  svg.appendChild(txt({x:SX-OR-6,y:SY+OR+22,fill:"#7f95b0","font-size":10.5,"font-family":MONO},"1 AU = Earth–Sun distance"));
+
+  // ===== telescope view =====
+  svg.appendChild(txt({x:TX,y:20,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Through the telescope"));
+  svg.appendChild(el("circle",{cx:TX,cy:TY,r:TR,fill:"#050a12",stroke:"#3d5675","stroke-width":2}));
+  const g=el("g",{"clip-path":"url(#scope)"}); svg.appendChild(g);
+  const step=niceStep(2*half,6);
+  for(let v=-Math.floor(half/step)*step; v<=half+1e-9; v+=step){
+    const x=TX+v*k, y=TY-v*k;
+    g.appendChild(el("line",{x1:x,x2:x,y1:TY-TR,y2:TY+TR,stroke:"#1c2c42"}));
+    g.appendChild(el("line",{x1:TX-TR,x2:TX+TR,y1:y,y2:y,stroke:"#1c2c42"}));
+    if(Math.abs(v)>1e-9) g.appendChild(txt({x,y:TY+TR-26,fill:"#7f95b0","font-size":10.5,"text-anchor":"middle","font-family":MONO},(v>0?"+":"−")+fmtAng(v)));
+  }
+  g.appendChild(txt({x:TX,y:TY+TR-12,fill:"#7f95b0","font-size":10.5,"text-anchor":"middle","font-family":MONO},"grid spacing "+fmtAng(step)));
+  const sg=el("g",{}); g.appendChild(sg);
+  for(const b of BG){ const r=1.6+2.2*b.m;
+    sg.appendChild(see?el("circle",{cx:TX+b.x*TR,cy:TY+b.y*TR*0.9,r:Math.max(seeR,r),fill:"url(#blob)","fill-opacity":0.5+0.5*b.m})
+                     :el("circle",{cx:TX+b.x*TR,cy:TY+b.y*TR*0.9,r,fill:"#dfe7f1","fill-opacity":0.55+0.4*b.m})); }
+  // photo markers
+  photos.forEach((ph,i)=>{ const x=TX+offsetAt(ph.t,p)*k;
+    g.appendChild(el("circle",{cx:x,cy:TY,r:11,fill:"none",stroke:i?"var(--p2)":"var(--p1)","stroke-width":2}));
+    g.appendChild(txt({x,y:TY+(i?32:-20),fill:i?"#f4a261":"#4cc9f0","font-size":11,"text-anchor":"middle","font-family":MONO},"photo "+(i+1)+": "+fmtDate(ph.t))); });
+  if(photos.length===2){
+    const x1=TX+offsetAt(photos[0].t,p)*k, x2=TX+offsetAt(photos[1].t,p)*k;
+    if(Math.abs(x2-x1)>16) g.appendChild(el("line",{x1:x1+(x2>x1?12:-12),x2:x2+(x2>x1?-12:12),y1:TY+54,y2:TY+54,stroke:"#e9eef4","stroke-width":1.4,"marker-start":"url(#ar)","marker-end":"url(#ar)"}));
+    g.appendChild(txt({x:(x1+x2)/2,y:TY+72,fill:"#e9eef4","font-size":12,"text-anchor":"middle","font-family":MONO},"shift = "+fmtAng(offsetAt(photos[1].t,p)-offsetAt(photos[0].t,p))));
+  }
+  const nx=TX+offsetAt(t,p)*k;
+  sg.appendChild(see?el("circle",{cx:nx,cy:TY,r:Math.max(seeR,6.5),fill:"url(#blobN)"}):el("circle",{cx:nx,cy:TY,r:6.5,fill:"#ffd6c9"}));
+  if(!see) g.appendChild(el("circle",{cx:nx,cy:TY,r:12,fill:"#ffb4a2","fill-opacity":0.18}));
+}
+
+// ---------- readouts ----------
+function update(){
+  const p=par(), d=dist(), t=+tS.value, myst=star.p===null, show=!myst||tAns.checked;
+  document.getElementById("tv").textContent=fmtDate(t);
+  document.getElementById("dv").textContent=show?(+d.toPrecision(3))+" pc":"hidden";
+  dS.disabled=myst; document.getElementById("dlab").style.opacity=myst?0.5:1;
+  let ro=`<span>photos taken <b>${photos.length}/2</b></span>`;
+  if(photos.length===2){
+    const sh=Math.abs(offsetAt(photos[1].t,p)-offsetAt(photos[0].t,p));
+    ro+=`<span>measured shift <b>${fmtAng(sh)}</b></span>`;
+  }
+  if(show) ro+=`<span>true parallax p <b>${fmtAng(p)}</b></span><span>distance <b>${(+d.toPrecision(3))} pc = ${(+(d*PC_LY).toPrecision(3))} ly</b></span>`;
+  document.getElementById("readouts").innerHTML=ro;
+  const note=document.getElementById("note");
+  if(photos.length<2){
+    note.innerHTML=photos.length===0?"Press <b>Take photo</b> to record where the star appears today, then move the date on (or press Play) and take a second photo. Which two dates give the biggest shift?"
+      :"Now change the date and take a second photo. Try to make the star's shift as large as possible.";
+  }else{
+    const sh=Math.abs(offsetAt(photos[1].t,p)-offsetAt(photos[0].t,p)), g0=Math.abs(photos[1].t-photos[0].t), gap=Math.min(g0,1-g0), half=Math.abs(gap-0.5)<0.045;
+    note.innerHTML=half
+      ?`Your photos are about six months apart, so the Earth was on opposite sides of the Sun and the shift is the full 2p. `+
+       `<span class="m">p = ${fmtAng(sh)} / 2 = ${fmtAng(sh/2)}</span>, so <span class="m">d = 1 / ${(sh/2).toFixed(4)} = ${(+(2/sh).toPrecision(3))} pc</span>.`+
+       (tSee.checked&&sh<0.8?" With atmospheric blurring on, notice how the star's image is wider than the shift you're trying to measure!":"")
+      :`These photos are ${Math.round(gap*365)} days apart, so the Earth wasn't on opposite sides of its orbit and the shift (${fmtAng(sh)}) is less than the full 2p. Take two photos about six months (183 days) apart, such as January and July.`;
+  }
+  for(const b of document.querySelectorAll("#stars .pill")) b.classList.toggle("on",b.textContent===star.name);
+}
+function render(){ draw(); update(); }
+
+const tab=document.getElementById("tab");
+for(const s of STARS.filter(s=>s.p)){
+  const tr=document.createElement("tr");
+  tr.innerHTML=`<td>${s.name}</td><td class="num">${s.p.toFixed(4)}″</td><td class="num">${(1/s.p).toFixed(2)}</td><td class="num">${(PC_LY/s.p).toFixed(2)}</td>`;
+  tab.appendChild(tr);
+}
+const tr=document.createElement("tr");
+tr.innerHTML=`<td>Typical star in the Pleiades</td><td class="num">0.0074″</td><td class="num">136</td><td class="num">444</td>`; tab.appendChild(tr);
+
+// ---------- controls ----------
+const box=document.getElementById("stars");
+for(const s of STARS){ const b=document.createElement("button"); b.className="pill"; b.textContent=s.name;
+  b.addEventListener("click",()=>{ star=s; photos=[];
+    if(s.p===null){ mystery=0.08+0.8*Math.random(); tAns.checked=false; }
+    dS.value=Math.log10(1/(s.p??mystery)); render(); }); box.appendChild(b); }
+document.getElementById("photo").addEventListener("click",()=>{ if(photos.length>=2) photos=[]; photos.push({t:+tS.value}); render(); });
+document.getElementById("clear").addEventListener("click",()=>{ photos=[]; render(); });
+dS.addEventListener("input",()=>{ star={name:"Custom",p:par()}; render(); });
+for(const c of [tS,tSee,tAns]) c.addEventListener("input",render);
+const playBtn=document.getElementById("play");
+function tick(now){ if(!playing) return; const dt=Math.min((now-last)/1000,0.1); last=now;
+  tS.value=(+tS.value+dt/8)%1; render(); requestAnimationFrame(tick); }
+playBtn.addEventListener("click",()=>{ playing=!playing; playBtn.innerHTML=playing?"&#10074;&#10074; Pause":"&#9654; Play";
+  if(playing){ last=performance.now(); requestAnimationFrame(tick); } });
+
+tS.value=0.03; dS.value=Math.log10(1/STARS[0].p);
+render();
+</script>
+</body>
+</html>
