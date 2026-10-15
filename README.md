@@ -20,6 +20,10 @@ Companion repository: [Astro_Code](https://github.com/mjcowley/Astro_Code), a co
 | [Kepler's Laws and Orbits](https://mjcowley.github.io/astro_demos/kepler/) | Change an orbit's size and shape to explore all three of Kepler's laws, or launch a planet at different speeds up to escape. |
 | [Stellar Parallax](https://mjcowley.github.io/astro_demos/parallax/) | Photograph a nearby star six months apart, measure its shift and work out its distance in parsecs. |
 | [Telescope Resolution and Light Collection](https://mjcowley.github.io/astro_demos/telescope/) | Split close double stars by changing aperture, wavelength and seeing, and compare light-gathering power. |
+| [Solar System to Scale](https://mjcowley.github.io/astro_demos/solar-system/) | Travel outward from the Sun with sizes and distances on one scale, and build a scale model you could walk. |
+| [Planet Temperatures](https://mjcowley.github.io/astro_demos/planet-temperature/) | See how distance, albedo, the greenhouse effect and the star set a planet's temperature, with the habitable zone. |
+| [Jeans Mass and Cloud Collapse](https://mjcowley.github.io/astro_demos/jeans-mass/) | Change a gas cloud's temperature, density and mass to see whether gravity or pressure wins. |
+| [Stellar Remnants Compared](https://mjcowley.github.io/astro_demos/stellar-remnants/) | Zoom from the Sun down to a city to compare white dwarfs, neutron stars and black holes, with a mass-radius diagram. |
 
 ## Embedding in Canvas
 

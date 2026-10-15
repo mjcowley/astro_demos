@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solar System to Scale</title>
+<style>
+  :root{
+    --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
+    --panel:#0d1826; --panel-edge:#22354c;
+    --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f6f8;padding:16px 8px}
+  .app{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 18px 10px}
+  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.01em}
+  header .sub{font-size:12px;color:var(--muted)}
+  .plotwrap{background:var(--panel);border-top:1px solid var(--panel-edge);border-bottom:1px solid var(--panel-edge)}
+  svg{display:block;width:100%;height:auto}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:12px 18px 2px;font-size:13px}
+  .presets .lbl{color:var(--muted);margin-right:2px}
+  .pill{font:inherit;font-size:12.5px;padding:5px 11px;border:1px solid var(--line);background:#fff;border-radius:99px;cursor:pointer;color:var(--ink)}
+  .pill:hover{border-color:var(--accent)}
+  .pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .controls{padding:8px 18px 4px;display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;font-size:13px}
+  .btn{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:6px;cursor:pointer;min-width:84px}
+  .pos{font-family:var(--mono);font-size:22px;font-weight:600;min-width:170px}
+  .pos small{font-size:12px;color:var(--muted);font-weight:400;display:block}
+  input[type=range]{flex:1;min-width:220px;accent-color:var(--accent);height:28px}
+  select{font:inherit;font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+  .readouts{display:flex;gap:10px 24px;flex-wrap:wrap;padding:4px 18px 10px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .readouts b{color:var(--ink);font-weight:600}
+  h2{font-size:14px;margin:6px 18px 6px;font-weight:650}
+  .model{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:0 18px 8px;font-size:13.5px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  .tablewrap{padding:0 18px 10px;overflow-x:auto}
+  th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}
+  th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+  td.num{font-family:var(--mono);white-space:nowrap}
+  td .dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:7px;vertical-align:-1px}
+  .hint{padding:0 18px 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  footer{padding:10px 18px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+  @media (max-width:600px){ header{flex-direction:column;gap:2px} .pos{font-size:18px} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Solar System to Scale</h1>
+    <div class="sub">Travel outward from the Sun with sizes and distances on the same scale, and build a model you could walk</div>
+  </header>
+
+  <div class="plotwrap"><svg id="plot" viewBox="0 0 920 480" role="img" aria-label="The solar system drawn to scale"></svg></div>
+
+  <div class="presets" id="jumps"><span class="lbl">Jump to:</span></div>
+
+  <div class="controls">
+    <button class="btn" id="play">&#9654; Travel</button>
+    <select id="speed" aria-label="Travel speed">
+      <option value="1">at the speed of light</option>
+      <option value="20">20 × light speed</option>
+      <option value="200" selected>200 × light speed</option>
+      <option value="2000">2000 × light speed</option>
+    </select>
+    <div class="pos"><small>distance from the Sun</small><span id="posv">0 AU</span></div>
+    <input id="x" type="range" min="0" max="42" step="any" aria-label="Distance from the Sun">
+  </div>
+
+  <div class="readouts" id="readouts"></div>
+
+  <h2>Build your own scale model</h2>
+  <div class="model">If the Sun were the size of a
+    <select id="sunSize" aria-label="Size of the model Sun">
+      <option value="0.015">marble (1.5 cm)</option>
+      <option value="0.067">tennis ball (6.7 cm)</option>
+      <option value="0.24" selected>basketball (24 cm)</option>
+      <option value="1">fitness ball (1 m)</option>
+      <option value="10">two-storey house (10 m)</option>
+    </select>
+    then:
+  </div>
+  <div class="tablewrap">
+    <table aria-label="Scale model of the solar system">
+      <thead><tr><th>Object</th><th>Model size</th><th>About as big as</th><th>Distance from model Sun</th><th>Walking there (5 km/h)</th></tr></thead>
+      <tbody id="tab"></tbody>
+    </table>
+  </div>
+
+  <div class="hint">
+    <b>Things to notice:</b> in the top strip, sizes and distances are at the same scale, so most of the journey is empty space and even Jupiter is only a few pixels across.
+    The Earth is about 109 times smaller than the Sun, and about 107 Sun-widths away from it. Light from the Sun takes about 8 minutes to reach us, and over 4 hours to reach Neptune. The nearest star, Proxima Centauri, would be another 270,000 AU beyond that.
+  </div>
+
+  <footer>
+    Planets are shown lined up for clarity; in reality they're spread around their orbits. Distances are average orbital distances (semi-major axes) and sizes are equatorial radii. Pluto is included as a dwarf planet. 1 AU (astronomical unit) = 149.6 million km, the average Earth&ndash;Sun distance.
+    <br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.
+  </footer>
+</div>
+
+<script>
+"use strict";
+const AU=1.496e8, RSUN=696000, LIGHT_S_PER_AU=499.0;
+// name, radius (km), distance (AU), colour
+const BODIES=[
+  ["Sun",RSUN,0,"#ffd166"],["Mercury",2440,0.387,"#b5aca2"],["Venus",6052,0.723,"#e8cf9a"],["Earth",6371,1.000,"#4f8fd6"],
+  ["Mars",3390,1.524,"#c8643c"],["Jupiter",69911,5.203,"#d8b48a"],["Saturn",58232,9.537,"#e3cf9a"],["Uranus",25362,19.19,"#9fd8e0"],
+  ["Neptune",24622,30.07,"#4f74d9"],["Pluto",1188,39.48,"#c9b09a"],
+].map(([name,r,a,col])=>({name,r,a,col}));
+const PLANETS=BODIES.slice(1);
+// everyday objects for the model, diameter in metres
+const THINGS=[[0.0001,"a speck of dust"],[0.0005,"a grain of sand"],[0.001,"a poppy seed"],[0.002,"a sesame seed"],[0.004,"a peppercorn"],
+  [0.008,"a pea"],[0.015,"a marble"],[0.022,"a grape"],[0.043,"a golf ball"],[0.067,"a tennis ball"],[0.09,"an orange"],[0.13,"a grapefruit"],
+  [0.22,"a soccer ball"],[0.5,"a beach ball"],[1,"a fitness ball"],[2,"a small car"]];
+
+const xs=document.getElementById("x"), speedS=document.getElementById("speed"), sunS=document.getElementById("sunSize");
+const pos=()=>+xs.value;
+
+// ---------- drawing ----------
+const svg=document.getElementById("plot"), NS="http://www.w3.org/2000/svg";
+const MONO='ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace';
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(a,s){const t=el("text",a);t.textContent=s;return t;}
+
+// row 1: true scale window, Sun is 110 px across
+const W1Y=88, PXKM=110/(2*RSUN), PXAU=PXKM*AU;
+// row 2: distances only, 0 to 42 AU
+const OX0=30, OX1=890, OY=220, oX=a=>OX0+a/42*(OX1-OX0);
+// row 3: sizes only
+const SZY=395, SZK=290/RSUN;
+
+function draw(){
+  const x=pos();
+  svg.textContent="";
+  const defs=el("defs",{}), cp=el("clipPath",{id:"w1"}); cp.appendChild(el("rect",{x:0,y:20,width:920,height:140})); defs.appendChild(cp);
+  const cp3=el("clipPath",{id:"w3"}); cp3.appendChild(el("rect",{x:0,y:270,width:920,height:210})); defs.appendChild(cp3);
+  const gl=el("radialGradient",{id:"sunglow"});
+  gl.appendChild(el("stop",{offset:"0%","stop-color":"#fff3c4"})); gl.appendChild(el("stop",{offset:"70%","stop-color":"#ffd166"})); gl.appendChild(el("stop",{offset:"100%","stop-color":"#f4a261"}));
+  defs.appendChild(gl); svg.appendChild(defs);
+
+  // ===== row 1 =====
+  svg.appendChild(txt({x:16,y:16,fill:"#a9bbcf","font-size":12.5},"1. Where you are, with sizes AND distances to the same scale (the strip is "+(920/PXAU).toFixed(3)+" AU wide)"));
+  svg.appendChild(el("rect",{x:0,y:20,width:920,height:140,fill:"#070d17"}));
+  const g1=el("g",{"clip-path":"url(#w1)"}); svg.appendChild(g1);
+  const sx=a=>460+(a-x)*PXAU;
+  let shown=0;
+  for(const b of BODIES){
+    const cx=sx(b.a), r=Math.max(b.r*PXKM,0.6);
+    if(cx+r<-60||cx-r>980) continue;
+    shown++;
+    if(b.name==="Sun") g1.appendChild(el("circle",{cx,cy:W1Y,r:r*1.4,fill:"#ffd166","fill-opacity":0.12}));
+    g1.appendChild(el("circle",{cx,cy:W1Y,r,fill:b.name==="Sun"?"url(#sunglow)":b.col}));
+    if(b.name==="Saturn") g1.appendChild(el("ellipse",{cx,cy:W1Y,rx:Math.max(140000*PXKM,1.2),ry:Math.max(140000*PXKM*0.25,0.4),fill:"none",stroke:"#e3cf9a","stroke-opacity":0.7}));
+    if(b.name!=="Sun"){
+      g1.appendChild(el("circle",{cx,cy:W1Y,r:9,fill:"none",stroke:b.col,"stroke-opacity":0.6,"stroke-dasharray":"2 2"}));
+      g1.appendChild(txt({x:cx,y:W1Y-16,fill:"#e9eef4","font-size":11.5,"text-anchor":"middle","font-family":MONO},b.name));
+      g1.appendChild(txt({x:cx,y:W1Y+26,fill:"#7f95b0","font-size":10,"text-anchor":"middle","font-family":MONO},"true size: "+(2*b.r*PXKM).toFixed(2)+" px"));
+    }
+  }
+  g1.appendChild(el("line",{x1:460,x2:460,y1:24,y2:36,stroke:"#ffd166"}));
+  g1.appendChild(el("line",{x1:460,x2:460,y1:140,y2:156,stroke:"#ffd166"}));
+  if(!shown){
+    const next=BODIES.find(b=>b.a>x+0.02), prev=[...BODIES].reverse().find(b=>b.a<x-0.02);
+    g1.appendChild(txt({x:460,y:W1Y-4,fill:"#7f95b0","font-size":13,"text-anchor":"middle"},"Empty space"));
+    g1.appendChild(txt({x:460,y:W1Y+16,fill:"#5b6b7a","font-size":11.5,"text-anchor":"middle","font-family":MONO},
+      next?next.name+" is "+(next.a-x).toFixed(2)+" AU ahead ("+Math.round((next.a-x)*PXAU).toLocaleString()+" px to the right)":"Beyond the planets: the Kuiper Belt, then a very long way to the next star"));
+    if(prev) g1.appendChild(txt({x:16,y:W1Y+4,fill:"#5b6b7a","font-size":11,"font-family":MONO},"← "+prev.name));
+    if(next) g1.appendChild(txt({x:904,y:W1Y+4,fill:"#5b6b7a","font-size":11,"text-anchor":"end","font-family":MONO},next.name+" →"));
+  }
+
+  // ===== row 2 =====
+  svg.appendChild(txt({x:16,y:186,fill:"#a9bbcf","font-size":12.5},"2. Distances to scale (click to jump there)"));
+  svg.appendChild(el("line",{x1:OX0,x2:OX1,y1:OY,y2:OY,stroke:"#3d5675"}));
+  for(let a=0;a<=40;a+=5){ svg.appendChild(el("line",{x1:oX(a),x2:oX(a),y1:OY+4,y2:OY+9,stroke:"#3d5675"}));
+    svg.appendChild(txt({x:oX(a),y:OY+22,fill:"#7f95b0","font-size":10.5,"text-anchor":"middle","font-family":MONO},a+(a?"":" AU"))); }
+  BODIES.forEach((b,i)=>{
+    const cx=oX(b.a);
+    svg.appendChild(el("circle",{cx,cy:OY,r:b.name==="Sun"?7:3.5,fill:b.col}));
+    if(i>4){ const up=i%2===1; svg.appendChild(txt({x:cx,y:up?OY-10:OY+36,fill:"#c3d2e2","font-size":10.5,"text-anchor":"middle","font-family":MONO},b.name)); }
+  });
+  // the four inner planets are too close together to label one by one
+  svg.appendChild(el("path",{d:`M${oX(0.387)} ${OY+30}v4H${oX(1.524)}v-4`,fill:"none",stroke:"#7f95b0"}));
+  svg.appendChild(txt({x:oX(0.387),y:OY+48,fill:"#c3d2e2","font-size":10.5,"font-family":MONO},"Mercury to Mars"));
+  const px=oX(x);
+  svg.appendChild(el("rect",{x:px-3,y:OY-14,width:Math.max(6,920/PXAU/42*(OX1-OX0)),height:28,fill:"#ffd166","fill-opacity":0.25,stroke:"#ffd166"}));
+  svg.appendChild(txt({x:px,y:OY-20,fill:"#ffd166","font-size":10.5,"text-anchor":"middle","font-family":MONO},"you"));
+  const hit=el("rect",{x:OX0-10,y:OY-26,width:OX1-OX0+20,height:56,fill:"transparent",style:"cursor:pointer"});
+  hit.addEventListener("click",e=>{ const r=svg.getBoundingClientRect(), X=(e.clientX-r.left)/r.width*920;
+    xs.value=Math.max(0,Math.min(42,(X-OX0)/(OX1-OX0)*42)); render(); });
+  svg.appendChild(hit);
+
+  // ===== row 3 =====
+  const g3=el("g",{"clip-path":"url(#w3)"}); svg.appendChild(g3);
+  svg.appendChild(txt({x:120,y:286,fill:"#a9bbcf","font-size":12.5},"3. Sizes to scale (distances not to scale)"));
+  g3.appendChild(el("circle",{cx:-RSUN*SZK+80,cy:SZY,r:RSUN*SZK,fill:"url(#sunglow)"}));
+  g3.appendChild(txt({x:24,y:SZY+4,fill:"#5b3a00","font-size":12,"font-weight":650},"Sun"));
+  let cx=110;
+  for(const b of PLANETS){
+    const r=Math.max(b.r*SZK,0.8);
+    cx+=Math.max(r,5)+14;
+    if(b.name==="Saturn") g3.appendChild(el("ellipse",{cx,cy:SZY,rx:140000*SZK,ry:140000*SZK*0.28,fill:"none",stroke:"#e3cf9a","stroke-width":3,"stroke-opacity":0.6}));
+    g3.appendChild(el("circle",{cx,cy:SZY,r,fill:b.col}));
+    g3.appendChild(txt({x:cx,y:SZY+(r>20?r+18:(PLANETS.indexOf(b)%2?24:-14)),fill:"#c3d2e2","font-size":10.5,"text-anchor":"middle","font-family":MONO},b.name));
+    cx+=Math.max(r,5)+(b.name==="Saturn"?20:0);
+  }
+}
+
+// ---------- readouts and model ----------
+function fmtTime(s){
+  if(s<60) return s.toFixed(1)+" s";
+  if(s<3600) return (s/60).toFixed(1)+" min";
+  if(s<86400*2) return (s/3600).toFixed(1)+" hours";
+  if(s<86400*365*2) return Math.round(s/86400).toLocaleString()+" days";
+  return Math.round(s/86400/365.25).toLocaleString()+" years";
+}
+function fmtLen(m){
+  if(m<0.001) return (m*1e6>=100?Math.round(m*1e6):(+(m*1e6).toPrecision(2)))+" µm";
+  if(m<0.01) return (+(m*1000).toPrecision(2))+" mm";
+  if(m<1) return (+(m*100).toPrecision(2))+" cm";
+  if(m<1000) return (+m.toPrecision(3))+" m";
+  return (+(m/1000).toPrecision(3))+" km";
+}
+function like(d){ if(d<0.00007) return "smaller than a speck of dust";
+  let best=THINGS[0]; for(const t of THINGS) if(Math.abs(Math.log(t[0]/d))<Math.abs(Math.log(best[0]/d))) best=t; return best[1]; }
+function update(){
+  const x=pos(), km=x*AU;
+  document.getElementById("posv").textContent=x.toFixed(x<10?3:2)+" AU";
+  const near=PLANETS.reduce((a,b)=>Math.abs(b.a-x)<Math.abs(a.a-x)?b:a);
+  document.getElementById("readouts").innerHTML=
+    `<span>that's <b>${km>=1e9?(km/1e9).toFixed(2)+" billion":(km/1e6).toFixed(1)+" million"} km</b></span>`+
+    `<span>light from the Sun takes <b>${fmtTime(x*LIGHT_S_PER_AU)}</b></span>`+
+    `<span>by car at 110 km/h <b>${fmtTime(km/110*3600)}</b></span>`+
+    `<span>nearest planet <b>${near.name} (${Math.abs(near.a-x).toFixed(2)} AU)</b></span>`;
+  const D=+sunS.value, k=D/(2*RSUN*1000), tb=document.getElementById("tab"); tb.textContent="";
+  for(const b of BODIES){
+    const d=2*b.r*1000*k, dist=b.a*AU*1000*k;
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td><span class="dot" style="background:${b.col}"></span>${b.name}</td><td class="num">${fmtLen(d)}</td><td>${like(d)}</td>`+
+      `<td class="num">${b.a?fmtLen(dist):"–"}</td><td class="num">${b.a?fmtTime(dist/1000/5*3600):"–"}</td>`;
+    tb.appendChild(tr);
+  }
+  const tr=document.createElement("tr");
+  tr.innerHTML=`<td><span class="dot" style="background:#ffb4a2"></span>Proxima Centauri (nearest star)</td><td class="num">${fmtLen(2*107000*1000*k)}</td><td>${like(2*107000*1000*k)}</td>`+
+    `<td class="num">${fmtLen(268000*AU*1000*k)}</td><td class="num">${fmtTime(268000*AU*k/5*3600)}</td>`;
+  tb.appendChild(tr);
+  for(const b of document.querySelectorAll("#jumps .pill")) b.classList.toggle("on",Math.abs(+b.dataset.a-x)<0.0005);
+}
+function render(){ draw(); update(); }
+
+// ---------- controls ----------
+const jumps=document.getElementById("jumps");
+for(const b of BODIES){ const p=document.createElement("button"); p.className="pill"; p.textContent=b.name; p.dataset.a=b.a;
+  p.addEventListener("click",()=>{ xs.value=b.a; render(); }); jumps.appendChild(p); }
+let playing=false, last=0;
+const playBtn=document.getElementById("play");
+function tick(now){
+  if(!playing) return;
+  const dt=Math.min((now-last)/1000,0.1); last=now;
+  let x=+xs.value+dt*(+speedS.value)/LIGHT_S_PER_AU;
+  if(x>=42){ x=42; playing=false; playBtn.innerHTML="&#9654; Travel"; }
+  xs.value=x; render();
+  if(playing) requestAnimationFrame(tick);
+}
+playBtn.addEventListener("click",()=>{
+  playing=!playing; playBtn.innerHTML=playing?"&#10074;&#10074; Stop":"&#9654; Travel";
+  if(playing){ if(+xs.value>=42) xs.value=0; last=performance.now(); requestAnimationFrame(tick); }
+});
+xs.addEventListener("input",render); sunS.addEventListener("input",update);
+
+xs.value=0;
+render();
+</script>
+</body>
+</html>

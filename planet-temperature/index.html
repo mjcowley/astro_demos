@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planet Temperatures</title>
+<style>
+  :root{
+    --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
+    --panel:#0d1826; --panel-edge:#22354c;
+    --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e; --ir:#e07a5f; --hz:#2a9d8f;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f6f8;padding:16px 8px}
+  .app{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 18px 10px}
+  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.01em}
+  header .sub{font-size:12px;color:var(--muted)}
+  .plotwrap{background:var(--panel);border-top:1px solid var(--panel-edge);border-bottom:1px solid var(--panel-edge)}
+  svg{display:block;width:100%;height:auto;touch-action:none}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:12px 18px 2px;font-size:13px}
+  .presets .lbl{color:var(--muted);min-width:52px}
+  .pill{font:inherit;font-size:12.5px;padding:5px 11px;border:1px solid var(--line);background:#fff;border-radius:99px;cursor:pointer;color:var(--ink)}
+  .pill:hover{border-color:var(--accent)}
+  .pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .sliders{padding:8px 18px 4px;display:grid;grid-template-columns:170px 1fr 170px;gap:2px 14px;align-items:center;font-size:13px}
+  .sliders .v{font-family:var(--mono);font-size:12.5px}
+  input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+  .readouts{display:flex;gap:10px 24px;flex-wrap:wrap;padding:4px 18px 10px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .readouts b{color:var(--ink);font-weight:600}
+  .note{margin:2px 18px 12px;padding:10px 14px;border-left:4px solid var(--accent);background:#f2f6fa;border-radius:0 6px 6px 0;font-size:13.5px;line-height:1.55}
+  .eq{margin:0 18px 12px;font-family:var(--mono);font-size:12.5px;line-height:1.6;background:#f2f6fa;border-radius:6px;padding:8px 12px;white-space:pre;overflow-x:auto}
+  .hint{padding:0 18px 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  footer{padding:10px 18px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+  @media (max-width:600px){
+    header{flex-direction:column;gap:2px}
+    .sliders{grid-template-columns:1fr 130px} .sliders .lab{grid-column:1/-1;margin-top:4px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Planet Temperatures</h1>
+    <div class="sub">How a planet's distance, reflectivity and atmosphere set its temperature</div>
+  </header>
+
+  <div class="plotwrap"><svg id="plot" viewBox="0 0 920 430" role="img" aria-label="Planet distance, energy balance and temperature"></svg></div>
+
+  <div class="presets" id="planets"><span class="lbl">Planet:</span></div>
+  <div class="presets" id="stars"><span class="lbl">Star:</span></div>
+
+  <div class="sliders">
+    <span class="lab">Distance from star</span><input id="d" type="range" min="-1.7" max="1.7" step="any" aria-label="Distance"><span class="v" id="dv"></span>
+    <span class="lab">Albedo (reflectivity)</span><input id="A" type="range" min="0" max="0.95" step="0.01" aria-label="Albedo"><span class="v" id="Av"></span>
+    <span class="lab">Greenhouse strength</span><input id="g" type="range" min="0" max="2.2" step="any" aria-label="Greenhouse strength"><span class="v" id="gv"></span>
+    <span class="lab">Star's luminosity</span><input id="L" type="range" min="-3.5" max="1.5" step="any" aria-label="Star luminosity"><span class="v" id="Lv"></span>
+  </div>
+
+  <div class="readouts" id="readouts"></div>
+  <div class="note" id="note"></div>
+  <div class="eq" id="eq"></div>
+
+  <div class="hint">
+    <b>Energy balance:</b> a planet warms up until it radiates away (as infrared) exactly as much energy as it absorbs from its star. Further away, the starlight is spread more thinly (inverse square law), so the planet is colder.
+    A shinier planet (higher <i>albedo</i>) reflects more light and absorbs less. This gives the <i>equilibrium temperature</i>, which is what an airless planet would have.
+    Greenhouse gases such as CO&#8322; and water vapour let sunlight in but trap some of the outgoing infrared, so the surface has to get warmer to get rid of the same energy. Drag the planet along the top strip to move it.
+  </div>
+
+  <footer>
+    Equilibrium temperature assumes the absorbed energy is spread over the whole planet (a fast-rotating planet or one with winds); a slowly rotating airless world like Mercury has a much hotter day side and colder night side than this average. The greenhouse effect uses a simple grey-atmosphere model, T<sub>surface</sub>&#8308; = T<sub>eq</sub>&#8308;(1 + &frac34;&tau;), with &tau; the infrared thickness of the atmosphere, tuned to match each planet. The habitable zone uses the conservative limits of Kopparapu et al. (2013), scaled with the star's luminosity. Gas giants also release internal heat, which isn't included.
+    <br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.
+  </footer>
+</div>
+
+<script>
+"use strict";
+const S0=1361, SIG=5.670374419e-8, T0=Math.pow(S0/(4*SIG),0.25);    // 278 K for 1 L_sun at 1 AU, A = 0
+// name, distance (AU), Bond albedo, greenhouse tau, real mean surface temperature (K), star key
+const PLANETS=[
+  ["Mercury",0.387,0.07,0,440,"sun"],["Venus",0.723,0.76,142,737,"sun"],["Earth",1.0,0.30,0.84,288,"sun"],
+  ["Mars",1.524,0.25,0.03,210,"sun"],["Jupiter",5.203,0.34,0,124,"sun"],
+  ["Proxima b",0.0485,0.30,0.84,null,"proxima"],["TRAPPIST-1e",0.0293,0.30,0.84,null,"trappist"],
+].map(([name,d,A,tau,Treal,star])=>({name,d,A,tau,Treal,star}));
+const STARS={sun:["The Sun",1],proxima:["Proxima Centauri",0.00155],trappist:["TRAPPIST-1",0.000553],ftype:["Bright F star",4]};
+
+const dS=document.getElementById("d"), AS=document.getElementById("A"), gS=document.getElementById("g"), LS=document.getElementById("L");
+const dist=()=>Math.pow(10,+dS.value), alb=()=>+AS.value, tau=()=>Math.pow(10,+gS.value)-1, lum=()=>Math.pow(10,+LS.value);
+let current=null;                                  // the preset planet, if the settings still match it
+
+function Teq(){ return T0*Math.pow(lum(),0.25)*Math.pow(1-alb(),0.25)/Math.sqrt(dist()); }
+function Tsurf(){ return Teq()*Math.pow(1+0.75*tau(),0.25); }
+const hz=()=>[0.95*Math.sqrt(lum()),1.67*Math.sqrt(lum())];
+
+// ---------- drawing ----------
+const svg=document.getElementById("plot"), NS="http://www.w3.org/2000/svg";
+const MONO='ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace';
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(a,s){const t=el("text",a);t.textContent=s;return t;}
+const DX0=70, DX1=890, DY=88, DMIN=-1.7, DMAX=1.7;
+const dX=d=>DX0+(Math.log10(d)-DMIN)/(DMAX-DMIN)*(DX1-DX0);
+const TH0=405, TH1=196, TMAX=800, tY=T=>TH0-Math.min(T,TMAX)/TMAX*(TH0-TH1);
+
+function planetColour(T){             // icy, temperate, desert, scorched
+  if(T<200) return ["#dfe9f3","#9fb7cf"];
+  if(T<260) return ["#cfe3f5","#6c95bd"];
+  if(T<320) return ["#4f8fd6","#2f8f5b"];
+  if(T<450) return ["#d9a066","#a8643a"];
+  return ["#f08a4b","#8a2e1a"];
+}
+function arrow(g,x1,y1,x2,y2,col,w){
+  g.appendChild(el("line",{x1,y1,x2,y2,stroke:col,"stroke-width":w,"stroke-linecap":"round"}));
+  const a=Math.atan2(y2-y1,x2-x1), h=6+w;
+  g.appendChild(el("path",{d:`M${x2} ${y2}L${x2-h*Math.cos(a-0.45)} ${y2-h*Math.sin(a-0.45)}L${x2-h*Math.cos(a+0.45)} ${y2-h*Math.sin(a+0.45)}Z`,fill:col}));
+}
+
+function draw(){
+  const d=dist(), A=alb(), t=tau(), L=lum(), Te=Teq(), Ts=Tsurf(), [hi,ho]=hz();
+  svg.textContent="";
+  // ===== distance strip =====
+  svg.appendChild(txt({x:16,y:22,fill:"#a9bbcf","font-size":12.5},"Distance from the star (drag the planet)"));
+  svg.appendChild(el("rect",{x:dX(Math.max(hi,10**DMIN)),y:DY-22,width:Math.max(0,dX(Math.min(ho,10**DMAX))-dX(Math.max(hi,10**DMIN))),height:44,fill:"var(--hz)","fill-opacity":0.25}));
+  if(ho>10**DMIN&&hi<10**DMAX) svg.appendChild(txt({x:(dX(Math.max(hi,10**DMIN))+dX(Math.min(ho,10**DMAX)))/2,y:DY+36,fill:"#5fd3b4","font-size":11,"text-anchor":"middle","font-family":MONO},"habitable zone"));
+  svg.appendChild(el("line",{x1:DX0,x2:DX1,y1:DY,y2:DY,stroke:"#3d5675"}));
+  for(const v of [0.02,0.05,0.1,0.2,0.5,1,2,5,10,20,50]){ if(v<10**DMIN||v>10**DMAX) continue;
+    svg.appendChild(el("line",{x1:dX(v),x2:dX(v),y1:DY+22,y2:DY+27,stroke:"#3d5675"}));
+    svg.appendChild(txt({x:dX(v),y:DY+52,fill:"#7f95b0","font-size":10.5,"text-anchor":"middle","font-family":MONO},v+(v===1?" AU":""))); }
+  const sr=8+5*Math.pow(L,0.12);
+  svg.appendChild(el("circle",{cx:34,cy:DY,r:sr*1.8,fill:"#ffd166","fill-opacity":0.15}));
+  svg.appendChild(el("circle",{cx:34,cy:DY,r:sr,fill:L<0.05?"#ff9a5c":L>2?"#fff4d6":"#ffd166"}));
+  if(Math.abs(L-1)<0.01) for(const p of PLANETS.filter(p=>p.star==="sun")){
+    svg.appendChild(el("circle",{cx:dX(p.d),cy:DY,r:3,fill:"#7f95b0"}));
+    svg.appendChild(txt({x:dX(p.d),y:DY-12,fill:"#7f95b0","font-size":10,"text-anchor":"middle","font-family":MONO},p.name));
+  }
+  const [c1,c2]=planetColour(Ts), px=dX(d);
+  svg.appendChild(el("circle",{cx:px,cy:DY,r:10,fill:c1,stroke:"#fff","stroke-width":1.5,style:"cursor:grab"}));
+
+  // ===== energy balance cartoon =====
+  const PX=230, PY=285, PR=56;
+  svg.appendChild(txt({x:16,y:170,fill:"#a9bbcf","font-size":12.5},"Energy in and out"));
+  const gr=el("radialGradient",{id:"pg",cx:"35%",cy:"35%"});
+  gr.appendChild(el("stop",{offset:"0%","stop-color":c1})); gr.appendChild(el("stop",{offset:"100%","stop-color":c2}));
+  const defs=el("defs",{}); defs.appendChild(gr); svg.appendChild(defs);
+  const atm=Math.min(4+6*Math.log10(1+t),20);
+  if(t>0.01) svg.appendChild(el("circle",{cx:PX,cy:PY,r:PR+atm,fill:"#9fd8e0","fill-opacity":Math.min(0.12+0.08*Math.log10(1+t),0.35)}));
+  svg.appendChild(el("circle",{cx:PX,cy:PY,r:PR,fill:"url(#pg)"}));
+  const g=el("g",{}); svg.appendChild(g);
+  const inW=2+4*Math.min(1,Math.log10(1+L/(d*d)*9)/1.3);
+  for(const dy of [-36,0,36]) arrow(g,24,PY+dy,PX-PR-atm-6,PY+dy,"#ffd166",inW);
+  svg.appendChild(txt({x:24,y:PY-50,fill:"#ffd166","font-size":11,"font-family":MONO},"starlight in"));
+  if(A>0.01) for(const dy of [-30,30]) arrow(g,PX-PR-atm-8,PY+dy,PX-PR-atm-58,PY+dy*2.2,"#fff3c4",1+5*A);
+  svg.appendChild(txt({x:24,y:PY+108,fill:"#fff3c4","font-size":11,"font-family":MONO},"reflected "+Math.round(A*100)+"%"));
+  const esc=1/(1+0.75*t);     // fraction of surface infrared that escapes directly (illustrative)
+  for(const ang of [-50,-15,20,55]){ const a=ang*Math.PI/180, x1=PX+(PR+2)*Math.cos(a), y1=PY+(PR+2)*Math.sin(a);
+    const x2=PX+(PR+atm+42)*Math.cos(a), y2=PY+(PR+atm+42)*Math.sin(a);
+    arrow(g,x1,y1,x2,y2,"#e07a5f",1.5+3*esc);
+    if(t>0.05){ const xm=PX+(PR+atm*0.6)*Math.cos(a), ym=PY+(PR+atm*0.6)*Math.sin(a);
+      arrow(g,xm,ym,PX+(PR+4)*Math.cos(a+0.12),PY+(PR+4)*Math.sin(a+0.12),"#e07a5f",Math.min(1+1.2*Math.log10(1+t),3.5)); } }
+  svg.appendChild(txt({x:PX+PR+atm+20,y:PY-80,fill:"#e07a5f","font-size":11,"font-family":MONO},"infrared out"));
+  if(t>0.05) svg.appendChild(txt({x:PX+30,y:PY+PR+atm+30,fill:"#9fd8e0","font-size":11,"font-family":MONO},"atmosphere traps some infrared"));
+
+  // ===== thermometer =====
+  const TX=640;
+  svg.appendChild(txt({x:TX+20,y:174,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Temperature"));
+  svg.appendChild(el("rect",{x:TX,y:TH1-6,width:40,height:TH0-TH1+12,rx:20,fill:"#13233a",stroke:"#3d5675"}));
+  const grad=el("linearGradient",{id:"tg",x1:"0",y1:"1",x2:"0",y2:"0"});
+  for(const [o,c] of [[0,"#6c95bd"],[0.33,"#4f8fd6"],[0.42,"#2a9d8f"],[0.6,"#e9c46a"],[1,"#d62828"]]) grad.appendChild(el("stop",{offset:o,"stop-color":c}));
+  defs.appendChild(grad);
+  svg.appendChild(el("rect",{x:TX+10,y:tY(Ts),width:20,height:TH0-tY(Ts),rx:10,fill:"url(#tg)"}));
+  for(let T=0;T<=800;T+=100){ svg.appendChild(el("line",{x1:TX-6,x2:TX,y1:tY(T),y2:tY(T),stroke:"#7f95b0"}));
+    svg.appendChild(txt({x:TX-10,y:tY(T)+4,fill:"#7f95b0","font-size":10.5,"text-anchor":"end","font-family":MONO},T+" K")); }
+  const refs=[[273,"water freezes (0 °C)"],[373,"water boils (100 °C)"],[600,"lead melts"]];
+  for(const [T,l] of refs){ svg.appendChild(el("line",{x1:TX+40,x2:TX+58,y1:tY(T),y2:tY(T),stroke:"#a9bbcf","stroke-dasharray":"2 2"}));
+    svg.appendChild(txt({x:TX+62,y:tY(T)+4,fill:"#a9bbcf","font-size":10.5,"font-family":MONO},l)); }
+  const mark=(T,col,l,dy)=>{ const y=tY(T);
+    svg.appendChild(el("path",{d:`M${TX-2} ${y}l-10 -6v12z`,fill:col}));
+    svg.appendChild(txt({x:TX-62,y:y+4+dy,fill:col,"font-size":11,"text-anchor":"end","font-weight":600,"font-family":MONO},l)); };
+  mark(Te,"#c3d2e2","no air: "+Math.round(Te)+" K",Math.abs(Ts-Te)<25?(Ts>Te?12:-12):0);
+  mark(Ts,"#ffd166","surface: "+Math.round(Ts)+" K",Math.abs(Ts-Te)<25?(Ts>Te?-12:12):0);
+  if(current&&current.Treal) mark(current.Treal,"#5fd3b4","measured: "+current.Treal+" K",Math.abs(current.Treal-Ts)<25?24:0);
+  if(Ts>TMAX) svg.appendChild(txt({x:TX+20,y:TH1-14,fill:"#ffb4a2","font-size":11,"text-anchor":"middle","font-family":MONO},"off the scale ↑"));
+}
+
+// ---------- readouts ----------
+const fmtK=T=>Math.round(T)+" K ("+(Math.round(T-273.15)<0?"−":"")+Math.abs(Math.round(T-273.15))+" °C)";
+function update(){
+  const d=dist(), A=alb(), t=tau(), L=lum(), Te=Teq(), Ts=Tsurf(), F=S0*L/(d*d), [hi,ho]=hz();
+  document.getElementById("dv").textContent=(+d.toPrecision(3))+" AU";
+  document.getElementById("Av").textContent=A.toFixed(2)+" ("+Math.round(A*100)+"% reflected)";
+  document.getElementById("gv").textContent=t<0.005?"none":"τ = "+(+t.toPrecision(2));
+  document.getElementById("Lv").textContent=(L<0.01?L.toExponential(1).replace("e-","×10⁻"):+L.toPrecision(3))+" L☉";
+  document.getElementById("readouts").innerHTML=
+    `<span>starlight received <b>${F>=10?Math.round(F).toLocaleString():(+F.toPrecision(2))} W/m² (${(+(F/S0).toPrecision(2))}× Earth)</b></span>`+
+    `<span>equilibrium <b>${fmtK(Te)}</b></span><span>surface <b>${fmtK(Ts)}</b></span>`+
+    (current&&current.Treal?`<span>measured ${current.name} <b>${fmtK(current.Treal)}</b></span>`:"");
+  const water=Ts>=273&&Ts<=373, inHZ=d>=hi&&d<=ho;
+  let msg=(Ts<273?`At ${Math.round(Ts)} K any water would be frozen solid.`:Ts>373?`At ${Math.round(Ts)} K water would boil away (at Earth's air pressure).`:`At ${Math.round(Ts)} K liquid water could exist on the surface.`)+" ";
+  msg+=inHZ?"The planet is inside the star's habitable zone. ":d<hi?"The planet is closer than the inner edge of the habitable zone. ":"The planet is beyond the outer edge of the habitable zone. ";
+  if(current&&current.name==="Venus") msg+="Venus is a striking case: its bright clouds reflect three quarters of the sunlight, so it absorbs less than the Earth, yet its thick CO₂ atmosphere makes its surface the hottest in the solar system.";
+  else if(current&&current.name==="Earth") msg+="Without its greenhouse effect the Earth would average about −18 °C. Natural greenhouse gases keep it around +15 °C.";
+  else if(current&&current.name==="Mercury") msg+="This is Mercury's average; with no air to move heat around, its day side reaches about 700 K while the night side drops to about 100 K.";
+  else if(current&&current.name==="Jupiter") msg+="Jupiter's measured temperature (124 K, from the infrared it gives off) is higher than this, because it's still releasing heat left over from its formation.";
+  else if(current&&current.star!=="sun") msg+="Red dwarfs are so faint that their habitable zones are tiny: this planet orbits much closer than Mercury does to the Sun. Its real albedo and atmosphere are unknown, so Earth-like values are used here.";
+  document.getElementById("note").textContent=msg;
+  document.getElementById("eq").textContent=
+    "T_eq = 278 K × L^¼ × (1 − A)^¼ / √d = 278 × "+Math.pow(L,0.25).toFixed(3)+" × "+Math.pow(1-A,0.25).toFixed(3)+" / "+Math.sqrt(d).toFixed(3)+" = "+Math.round(Te)+" K\n"+
+    "T_surface = T_eq × (1 + ¾τ)^¼ = "+Math.round(Te)+" × "+Math.pow(1+0.75*t,0.25).toFixed(3)+" = "+Math.round(Ts)+" K";
+  for(const b of document.querySelectorAll("#planets .pill")) b.classList.toggle("on",current&&b.textContent===current.name);
+  for(const b of document.querySelectorAll("#stars .pill")) b.classList.toggle("on",Math.abs(STARS[b.dataset.k][1]/L-1)<0.01);
+}
+function render(){ draw(); update(); }
+
+// ---------- controls ----------
+function setPlanet(p){ current=p; dS.value=Math.log10(p.d); AS.value=p.A; gS.value=Math.log10(1+p.tau); LS.value=Math.log10(STARS[p.star][1]); render(); }
+const pp=document.getElementById("planets");
+for(const p of PLANETS){ const b=document.createElement("button"); b.className="pill"; b.textContent=p.name; b.addEventListener("click",()=>setPlanet(p)); pp.appendChild(b); }
+const sp=document.getElementById("stars");
+for(const k in STARS){ const b=document.createElement("button"); b.className="pill"; b.textContent=STARS[k][0]+" ("+(STARS[k][1]<0.01?STARS[k][1].toExponential(1).replace("e-","×10⁻"):STARS[k][1])+" L☉)"; b.dataset.k=k;
+  b.addEventListener("click",()=>{ current=null; LS.value=Math.log10(STARS[k][1]); render(); }); sp.appendChild(b); }
+for(const c of [dS,AS,gS,LS]) c.addEventListener("input",()=>{ current=null; render(); });
+
+let drag=false;
+function dragTo(e){ const r=svg.getBoundingClientRect(), X=(e.clientX-r.left)/r.width*920;
+  dS.value=Math.min(Math.max(DMIN+(X-DX0)/(DX1-DX0)*(DMAX-DMIN),DMIN),DMAX); current=null; render(); }
+svg.addEventListener("pointerdown",e=>{ const r=svg.getBoundingClientRect(), Y=(e.clientY-r.top)/r.height*430;
+  if(Y<DY-30||Y>DY+30) return; drag=true; svg.setPointerCapture(e.pointerId); dragTo(e); });
+svg.addEventListener("pointermove",e=>{ if(drag) dragTo(e); });
+svg.addEventListener("pointerup",()=>drag=false);
+svg.addEventListener("pointercancel",()=>drag=false);
+
+setPlanet(PLANETS[2]);
+</script>
+</body>
+</html>
