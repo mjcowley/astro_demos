@@ -16,6 +16,10 @@ Companion repository: [Astro_Code](https://github.com/mjcowley/Astro_Code), a co
 | [Magnitudes and Distance Modulus](https://mjcowley.github.io/astro_demos/magnitudes/) | Move a star nearer or further to explore the inverse square law, the magnitude scale, m&minus;M and dust extinction. |
 | [Exoplanet Transit Light Curve](https://mjcowley.github.io/astro_demos/transit/) | Change the planet size, orbital period and impact parameter and watch the transit dip respond, with optional limb darkening and noise. |
 | [Hubble Diagram Fitter](https://mjcowley.github.io/astro_demos/hubble/) | Fit Hubble's 1929 data or a simulated modern survey to measure H&#8320; and the Hubble time. |
+| [Celestial Sphere Explorer](https://mjcowley.github.io/astro_demos/celestial-sphere/) | Set your latitude, date and time to see the celestial sphere, your sky overhead, circumpolar stars and the Southern Cross. |
+| [Kepler's Laws and Orbits](https://mjcowley.github.io/astro_demos/kepler/) | Change an orbit's size and shape to explore all three of Kepler's laws, or launch a planet at different speeds up to escape. |
+| [Stellar Parallax](https://mjcowley.github.io/astro_demos/parallax/) | Photograph a nearby star six months apart, measure its shift and work out its distance in parsecs. |
+| [Telescope Resolution and Light Collection](https://mjcowley.github.io/astro_demos/telescope/) | Split close double stars by changing aperture, wavelength and seeing, and compare light-gathering power. |
 
 ## Embedding in Canvas
 
