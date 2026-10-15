@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Magnitudes and Distance Modulus</title>
+<style>
+  :root{
+    --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
+    --panel:#0d1826; --panel-edge:#22354c;
+    --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e; --dust:#e07a5f;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f6f8;padding:16px 8px}
+  .app{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 18px 10px}
+  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.01em}
+  header .sub{font-size:12px;color:var(--muted)}
+  .plotwrap{background:var(--panel);border-top:1px solid var(--panel-edge);border-bottom:1px solid var(--panel-edge)}
+  svg{display:block;width:100%;height:auto}
+  .top{display:flex;flex-wrap:wrap;gap:16px;align-items:center;padding:14px 18px 6px}
+  .sky{width:76px;height:76px;border-radius:8px;background:radial-gradient(circle at 50% 50%,#13233a,#060c16);flex:none;position:relative;overflow:hidden;border:1px solid var(--panel-edge)}
+  .sky .star{position:absolute;left:50%;top:50%;border-radius:50%;transform:translate(-50%,-50%);background:#fff}
+  .sky .cap{position:absolute;left:0;right:0;bottom:3px;text-align:center;font-size:9.5px;color:#7f95b0;font-family:var(--mono)}
+  .mbox{font-family:var(--mono);font-size:26px;font-weight:600;min-width:150px}
+  .mbox small{font-size:12px;color:var(--muted);font-weight:400;display:block}
+  .vis{font-size:13px;color:var(--muted);max-width:220px}
+  .vis b{color:var(--ink)}
+  .eq{flex:1;min-width:250px;font-family:var(--mono);font-size:12.5px;line-height:1.6;background:#f2f6fa;border-radius:6px;padding:8px 12px;color:var(--ink);white-space:pre;overflow-x:auto}
+  .eq .d{color:var(--dust)}
+  .sliders{padding:6px 18px 4px;display:grid;grid-template-columns:130px 1fr 180px;gap:6px 14px;align-items:center;font-size:13px}
+  .sliders .v{font-family:var(--mono);font-size:12.5px}
+  select{font:inherit;font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+  input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;padding:2px 18px 8px 162px;font-size:12px}
+  .chips .lbl{color:var(--muted);align-self:center;margin-right:2px}
+  .pill{font:inherit;font-size:12px;padding:4px 10px;border:1px solid var(--line);background:#fff;border-radius:99px;cursor:pointer;color:var(--ink)}
+  .pill:hover{border-color:var(--accent)}
+  .pill.act{border-color:var(--accent);color:var(--accent);font-weight:600}
+  .toggles{display:flex;gap:14px;flex-wrap:wrap;padding:2px 18px 6px;font-size:13px;color:var(--ink);align-items:center}
+  .toggles label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .readouts{display:flex;gap:24px;flex-wrap:wrap;padding:4px 18px 10px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .readouts b{color:var(--ink);font-weight:600}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  .tablewrap{padding:0 18px 10px;overflow-x:auto}
+  th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}
+  th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+  td.num{font-family:var(--mono);white-space:nowrap}
+  tr.you{background:#e8f2f0;font-weight:600}
+  .hint{padding:0 18px 10px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  footer{padding:10px 18px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+  @media (max-width:600px){
+    header{flex-direction:column;gap:2px} .mbox{font-size:22px}
+    .sliders{grid-template-columns:1fr 110px} .sliders .lab{grid-column:1/-1;margin-top:4px}
+    .chips{padding-left:18px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Magnitudes and Distance Modulus</h1>
+    <div class="sub">Move a star closer or further away and see how its brightness and magnitude change</div>
+  </header>
+
+  <div class="plotwrap"><svg id="plot" viewBox="0 0 920 440" role="img" aria-label="Apparent magnitude against distance"></svg></div>
+
+  <div class="top">
+    <div class="sky" title="Roughly how the star would look to your eye on a dark night"><div class="star" id="skystar"></div><div class="cap">your eye</div></div>
+    <div class="mbox"><small>apparent magnitude</small>m = <span id="mval">−1.66</span></div>
+    <div class="vis" id="vis"></div>
+    <div class="eq" id="eq"></div>
+  </div>
+
+  <div class="sliders">
+    <span class="lab">Star</span>
+    <select id="preset" aria-label="Star"></select>
+    <span></span>
+    <span class="lab">Luminosity</span>
+    <input id="L" type="range" min="-4" max="6" step="any" aria-label="Luminosity">
+    <span class="v" id="Lv"></span>
+    <span class="lab">Distance</span>
+    <input id="D" type="range" min="-5.5" max="6" step="any" aria-label="Distance">
+    <span class="v" id="Dv"></span>
+  </div>
+  <div class="chips" id="chips"><span class="lbl">Jump to:</span></div>
+  <div class="chips">
+    <span class="lbl">Inverse square law:</span>
+    <button class="pill" id="half">½ × distance</button>
+    <button class="pill" id="dbl">2 × distance</button>
+    <button class="pill" id="ten">10 × distance</button>
+  </div>
+
+  <div class="toggles">
+    <label><input id="tExt" type="checkbox"> Dust extinction</label>
+    <input id="A" type="range" min="0" max="5" step="0.1" value="1" style="width:160px;flex:none" aria-label="Extinction amount">
+    <span class="v" id="Av" style="font-family:var(--mono);font-size:12.5px;min-width:44px">1.0</span>
+    <select id="Amode" aria-label="Extinction mode">
+      <option value="kpc">mag per kpc</option>
+      <option value="tot">mag in total</option>
+    </select>
+  </div>
+
+  <div class="readouts">
+    <span>absolute mag M <b id="rM">1.23</b></span>
+    <span>distance modulus m&minus;M <b id="rmu">−2.89</b></span>
+    <span>flux <b id="rF">1.1×10⁻⁷ W m⁻²</b></span>
+    <span>vs at 10 pc <b id="rR">14×</b></span>
+  </div>
+
+  <div class="hint">
+    <b>How magnitudes work:</b> smaller (or more negative) numbers mean brighter. A difference of 5 magnitudes is exactly a factor of 100 in flux, so 1 magnitude is a factor of 100<sup>1/5</sup> &asymp; 2.512.
+    Flux falls as 1/d&sup2;, so doubling the distance gives &frac14; of the flux, which makes the star 2.5&nbsp;log<sub>10</sub>4 &asymp; 1.51 mag fainter.
+    The absolute magnitude M is defined as the apparent magnitude the star would have at 10&nbsp;pc.
+  </div>
+
+  <div class="tablewrap">
+    <table aria-label="Reference apparent magnitudes">
+      <thead><tr><th>Object (as seen from Earth)</th><th>Apparent mag</th><th>Flux (W m&#8315;&sup2;)</th><th>Compared with your star</th></tr></thead>
+      <tbody id="rtab"></tbody>
+    </table>
+  </div>
+
+  <footer>
+    Magnitudes for the chosen star are bolometric (all wavelengths), using the IAU zero point (m = 0 at 2.518&times;10&#8315;&#8312; W m&#8315;&sup2;) and M<sub>&#9737;</sub> = 4.74. Reference objects use their familiar visual magnitudes, which are close enough for comparison.
+    Real dust extinction depends on wavelength and direction; about 1 mag per kpc is typical in visible light along the plane of the Milky Way. Luminosities and distances of named stars are approximate.
+    <br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.
+  </footer>
+</div>
+
+<script>
+"use strict";
+// ---------- physics ----------
+const LSUN=3.828e26, PC=3.0857e16, MSUN=4.74, F0=2.518e-8, AU_PC=1/206264.8, LY_PC=3.26156;
+const absMag=L=>MSUN-2.5*Math.log10(L);            // L in solar units
+const fluxOf=m=>F0*Math.pow(10,-0.4*m);
+
+const STARS=[
+  {name:"The Sun",            L:1,      d:AU_PC},
+  {name:"Proxima Centauri",   L:0.0016, d:1.30},
+  {name:"Sirius A",           L:25.4,   d:2.64},
+  {name:"Vega",               L:40,     d:7.68},
+  {name:"Polaris",            L:1260,   d:133},
+  {name:"Betelgeuse",         L:1.0e5,  d:168},
+  {name:"Rigel",              L:1.2e5,  d:264},
+];
+const PLACES=[
+  {name:"1 AU",               d:AU_PC},
+  {name:"10 pc",              d:10},
+  {name:"Pleiades (136 pc)",  d:136},
+  {name:"Galactic centre (8.2 kpc)", d:8200},
+  {name:"Large Magellanic Cloud (50 kpc)", d:50000},
+];
+const REFS=[
+  {name:"Sun",                          m:-26.8},
+  {name:"Full Moon",                    m:-12.7},
+  {name:"Venus at its brightest",       m:-4.6},
+  {name:"Sirius (brightest night star)",m:-1.46},
+  {name:"Vega",                         m:0.03},
+  {name:"Polaris",                      m:1.98},
+  {name:"Faintest stars to the naked eye", m:6},
+  {name:"Pluto",                        m:14.4},
+  {name:"Faintest galaxies seen by Hubble", m:30},
+];
+
+// ---------- state ----------
+const Ls=document.getElementById("L"), Ds=document.getElementById("D"), pre=document.getElementById("preset");
+const tExt=document.getElementById("tExt"), As=document.getElementById("A"), Am=document.getElementById("Amode");
+const lumi=()=>Math.pow(10,+Ls.value), dist=()=>Math.pow(10,+Ds.value);
+function ext(d){
+  if(!tExt.checked) return 0;
+  return Am.value==="tot"?+As.value:+As.value*d/1000;
+}
+
+// ---------- formatting ----------
+const SUP=n=>String(n).replace(/[0-9-]/g,c=>"⁰¹²³⁴⁵⁶⁷⁸⁹"[+c]||"⁻");
+const minus=s=>s.replace(/-/g,"−");
+function sci(v,p=2){
+  const e=Math.floor(Math.log10(v)), m=v/Math.pow(10,e);
+  if(e>=-2&&e<=3) return String(Number(v.toPrecision(p+1)));
+  return m.toFixed(p-1)+"×10"+SUP(e);
+}
+function big(v){ return v>=1e4?sci(v):String(Number(v.toPrecision(3))).replace(/\B(?=(\d{3})+(?!\d))/g,","); }
+function fmtD(d){
+  if(d<0.01) return big(d/AU_PC)+" AU";
+  if(d<1000) return Number(d.toPrecision(3))+" pc";
+  if(d<1e6)  return Number((d/1000).toPrecision(3))+" kpc";
+  return Number((d/1e6).toPrecision(3))+" Mpc";
+}
+function fmtLy(d){ const ly=d*LY_PC; return ly<0.01?"":" ("+big(ly)+" ly)"; }
+const sgn=v=>minus((v>=0?"+":"")+v.toFixed(2));
+
+// ---------- plot ----------
+const svg=document.getElementById("plot"), NS="http://www.w3.org/2000/svg";
+const MONO='ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace';
+const W=920,H=440, ML=58,MR=86,MT=18,MB=44;
+const DMIN=-5.5, DMAX=6, MTOP=-30, MBOT=35;
+const xOf=ld=>ML+(ld-DMIN)/(DMAX-DMIN)*(W-ML-MR);
+const yOf=m=>MT+(m-MTOP)/(MBOT-MTOP)*(H-MT-MB);
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(a,s){const t=el("text",a);t.textContent=s;return t;}
+
+function draw(){
+  const L=lumi(), d=dist(), M=absMag(L), A=ext(d), mu=5*Math.log10(d/10), m=M+mu+A;
+  svg.textContent="";
+  const defs=el("defs",{}), cp=el("clipPath",{id:"area"});
+  cp.appendChild(el("rect",{x:ML,y:MT,width:W-ML-MR,height:H-MT-MB}));
+  const mk=el("marker",{id:"ar",viewBox:"0 0 10 10",refX:5,refY:5,markerWidth:6,markerHeight:6,orient:"auto-start-reverse"});
+  mk.appendChild(el("path",{d:"M0 0L10 5L0 10z",fill:"#e9eef4"}));
+  defs.appendChild(cp); defs.appendChild(mk); svg.appendChild(defs);
+
+  // naked-eye zone
+  svg.appendChild(el("rect",{x:ML,y:MT,width:W-ML-MR,height:yOf(6)-MT,fill:"#173049","fill-opacity":0.55}));
+
+  // grid
+  for(let e=-5;e<=6;e++){
+    const x=xOf(e);
+    svg.appendChild(el("line",{x1:x,x2:x,y1:MT,y2:H-MB,stroke:"#1c2c42","stroke-width":1}));
+    svg.appendChild(txt({x,y:H-MB+16,fill:"#7f95b0","font-size":11,"text-anchor":"middle","font-family":MONO},e===0?"1":e===1?"10":"10"+SUP(e)));
+  }
+  for(let v=-30;v<=35;v+=5){
+    const y=yOf(v);
+    svg.appendChild(el("line",{x1:ML,x2:W-MR,y1:y,y2:y,stroke:"#1c2c42","stroke-width":1}));
+    svg.appendChild(txt({x:ML-8,y:y+4,fill:"#7f95b0","font-size":11,"text-anchor":"end","font-family":MONO},minus(String(v))));
+  }
+  // flux axis on the right
+  for(let k=4;k>=-22;k-=2){
+    const mm=-2.5*(k-Math.log10(F0)); if(mm<MTOP||mm>MBOT) continue;
+    const y=yOf(mm);
+    svg.appendChild(el("line",{x1:W-MR,x2:W-MR+5,y1:y,y2:y,stroke:"#7f95b0","stroke-width":1}));
+    svg.appendChild(txt({x:W-MR+8,y:y+4,fill:"#7f95b0","font-size":10.5,"font-family":MONO},k===0?"1":"10"+SUP(k)));
+  }
+  svg.appendChild(el("line",{x1:W-MR,x2:W-MR,y1:MT,y2:H-MB,stroke:"#3d5675","stroke-width":1}));
+  svg.appendChild(txt({x:(ML+W-MR)/2,y:H-8,fill:"#a9bbcf","font-size":12,"text-anchor":"middle"},"Distance (parsecs)"));
+  const ym=(MT+H-MB)/2;
+  svg.appendChild(txt({x:14,y:ym,fill:"#a9bbcf","font-size":12,"text-anchor":"middle",transform:`rotate(-90 14 ${ym})`},"Apparent magnitude m   (brighter ↑)"));
+  svg.appendChild(txt({x:W-12,y:ym,fill:"#a9bbcf","font-size":12,"text-anchor":"middle",transform:`rotate(90 ${W-12} ${ym})`},"Flux (W m⁻²)"));
+
+  const g=el("g",{"clip-path":"url(#area)"}); svg.appendChild(g);
+  // reference levels
+  for(const [v,s] of [[6,"naked-eye limit"],[30,"deepest Hubble images"]]){
+    g.appendChild(el("line",{x1:ML,x2:W-MR,y1:yOf(v),y2:yOf(v),stroke:"#a9bbcf","stroke-width":1,"stroke-dasharray":"6 4","stroke-opacity":0.6}));
+    g.appendChild(txt({x:ML+8,y:yOf(v)-5,fill:"#a9bbcf","font-size":11,"font-family":MONO},s+" (m = "+v+")"));
+  }
+  // 10 pc line
+  g.appendChild(el("line",{x1:xOf(1),x2:xOf(1),y1:MT,y2:H-MB,stroke:"#5fbf7f","stroke-width":1,"stroke-dasharray":"3 4","stroke-opacity":0.8}));
+  g.appendChild(txt({x:xOf(1)+5,y:MT+14,fill:"#5fbf7f","font-size":11,"font-family":MONO},"10 pc"));
+
+  // the star's track: no dust (solid) and with dust (dashed)
+  const N=240; let d0="", d1="";
+  for(let i=0;i<=N;i++){
+    const ld=DMIN+(DMAX-DMIN)*i/N, dd=Math.pow(10,ld), base=M+5*(ld-1);
+    d0+=(i?"L":"M")+xOf(ld).toFixed(1)+" "+yOf(base).toFixed(1)+" ";
+    d1+=(i?"L":"M")+xOf(ld).toFixed(1)+" "+yOf(Math.min(base+ext(dd),MBOT+50)).toFixed(1)+" ";
+  }
+  g.appendChild(el("path",{d:d0,fill:"none",stroke:"var(--spec)","stroke-width":2,"stroke-opacity":A>0||tExt.checked?0.45:1}));
+  if(tExt.checked) g.appendChild(el("path",{d:d1,fill:"none",stroke:"var(--dust)","stroke-width":2,"stroke-dasharray":"7 4"}));
+
+  // M at 10 pc and the distance-modulus construction
+  const x10=xOf(1), xd=xOf(Math.log10(d)), yM=yOf(M), y0=yOf(M+mu), ym1=yOf(m);
+  g.appendChild(el("line",{x1:x10,x2:xd,y1:yM,y2:yM,stroke:"#5fbf7f","stroke-width":1,"stroke-dasharray":"2 3"}));
+  if(Math.abs(y0-yM)>14) g.appendChild(el("line",{x1:xd,x2:xd,y1:yM,y2:y0+(y0>yM?-4:4),stroke:"#e9eef4","stroke-width":1.3,"marker-end":"url(#ar)"}));
+  if(A>0&&Math.abs(ym1-y0)>10) g.appendChild(el("line",{x1:xd,x2:xd,y1:y0,y2:ym1-4,stroke:"var(--dust)","stroke-width":1.6,"marker-end":"url(#ar)"}));
+  g.appendChild(el("path",{d:`M${x10} ${yM-6}L${x10+6} ${yM}L${x10} ${yM+6}L${x10-6} ${yM}Z`,fill:"#5fbf7f"}));
+  const near=d<10;   // keep the M label clear of the current point
+  g.appendChild(txt({x:near?x10+10:x10-10,y:near?yM+18:yM-8,fill:"#5fbf7f","font-size":12,"text-anchor":near?"start":"end","font-family":MONO},"M = "+minus(M.toFixed(2))));
+  if(Math.abs(y0-yM)>40){
+    const right=xd<W-MR-150;
+    g.appendChild(txt({x:right?xd+8:xd-8,y:yM+0.3*(y0-yM)+4,fill:"#e9eef4","font-size":11.5,"text-anchor":right?"start":"end","font-family":MONO},"5 log₁₀(d/10 pc)"));
+  }
+  // current point
+  g.appendChild(el("circle",{cx:xd,cy:ym1,r:9,fill:"#fff","fill-opacity":0.15}));
+  g.appendChild(el("circle",{cx:xd,cy:ym1,r:5,fill:tExt.checked&&A>0?"var(--dust)":"var(--spec)",stroke:"#fff","stroke-width":1.2}));
+  const right=xd<W-MR-110;
+  g.appendChild(txt({x:right?xd+12:xd-12,y:ym1+(ym1<MT+30?18:-10),fill:"#fff","font-size":12.5,"font-weight":600,"text-anchor":right?"start":"end","font-family":MONO},"m = "+minus(m.toFixed(2))));
+}
+
+// ---------- readouts ----------
+function seeWith(m){
+  if(m<=-4)  return "<b>Dazzling</b>, brighter than any star in the night sky";
+  if(m<=6)   return "<b>Visible to the naked eye</b> on a dark night";
+  if(m<=10)  return "<b>Too faint for your eyes</b>, but binoculars will show it";
+  if(m<=25)  return "<b>Needs a telescope</b>; bigger telescopes see fainter";
+  if(m<=30)  return "<b>Only the largest telescopes</b> can detect it";
+  return "<b>Too faint</b> for any telescope";
+}
+function sky(m){
+  const s=document.getElementById("skystar");
+  if(m>6.5){ s.style.width=s.style.height="0px"; s.style.boxShadow="none"; return; }
+  const b=Math.min((6.5-m)/9,1), r=1.5+Math.min(Math.max(-m,0),30)*0.55+b*3;
+  s.style.width=s.style.height=r.toFixed(1)+"px";
+  s.style.opacity=(0.25+0.75*b).toFixed(2);
+  s.style.boxShadow=`0 0 ${(3+b*10+Math.max(-m,0)*0.7).toFixed(0)}px ${(b*3+Math.max(-m,0)*0.25).toFixed(0)}px rgba(255,255,255,${(0.3+0.5*b).toFixed(2)})`;
+}
+function update(){
+  const L=lumi(), d=dist(), M=absMag(L), A=ext(d), mu=5*Math.log10(d/10), m=M+mu+A;
+  const F=L*LSUN/(4*Math.PI*Math.pow(d*PC,2))*Math.pow(10,-0.4*A);
+  document.getElementById("Lv").textContent=big(L)+" L☉";
+  document.getElementById("Dv").textContent=fmtD(d)+fmtLy(d);
+  document.getElementById("Av").textContent=(+As.value).toFixed(1);
+  document.getElementById("mval").textContent=minus(m.toFixed(2));
+  document.getElementById("vis").innerHTML=seeWith(m);
+  document.getElementById("rM").textContent=minus(M.toFixed(2));
+  document.getElementById("rmu").textContent=sgn(mu+A);
+  document.getElementById("rF").textContent=sci(F)+" W m⁻²";
+  const r=Math.pow(10/d,2)*Math.pow(10,-0.4*A);
+  document.getElementById("rR").textContent=r>=1?sci(r)+"× brighter":sci(1/r)+"× fainter";
+  const dTxt=d<0.01?sci(d,3):String(Number(d.toPrecision(3)));
+  const lines=[
+    "m − M = 5 log₁₀(d / 10 pc)"+(tExt.checked?" + A":""),
+    "      = 5 log₁₀("+dTxt+" / 10)"+(tExt.checked?" + "+A.toFixed(2):"")+" = "+sgn(mu+A),
+    "m     = "+minus(M.toFixed(2))+" "+(mu+A>=0?"+ ":"− ")+Math.abs(mu+A).toFixed(2)+" = "+minus(m.toFixed(2)),
+  ];
+  document.getElementById("eq").innerHTML=lines.map(s=>s.replace(/(\+ A|\+ \d+\.\d\d(?= =))/,'<span class="d">$1</span>')).join("\n");
+  sky(m);
+  const tb=document.getElementById("rtab"); tb.textContent="";
+  const rows=REFS.map(x=>({...x})).concat([{name:"Your star",m,you:true}]).sort((a,b)=>a.m-b.m);
+  for(const x of rows){
+    const tr=document.createElement("tr"); if(x.you) tr.className="you";
+    const ratio=Math.pow(10,-0.4*(x.m-m));
+    const cmp=x.you?"–":Math.abs(Math.log10(ratio))<0.02?"about the same":ratio>1?sci(ratio)+"× brighter":sci(1/ratio)+"× fainter";
+    tr.innerHTML=`<td>${x.name}</td><td class="num">${minus(x.m.toFixed(2))}</td><td class="num">${sci(fluxOf(x.m))}</td><td class="num">${cmp}</td>`;
+    tb.appendChild(tr);
+  }
+  for(const b of document.querySelectorAll("#chips .pill")) b.classList.toggle("act",Math.abs(Math.log10(+b.dataset.d)-Math.log10(d))<0.005);
+}
+function render(){ draw(); update(); }
+
+// ---------- controls ----------
+for(const [i,s] of STARS.entries()){ const o=document.createElement("option"); o.value=i; o.textContent=s.name; pre.appendChild(o); }
+const oc=document.createElement("option"); oc.value="c"; oc.textContent="Custom star"; pre.appendChild(oc);
+pre.addEventListener("input",()=>{ if(pre.value==="c") return; const s=STARS[+pre.value]; Ls.value=Math.log10(s.L); Ds.value=Math.log10(s.d); render(); });
+Ls.addEventListener("input",()=>{ pre.value="c"; render(); });
+Ds.addEventListener("input",render);
+const chips=document.getElementById("chips");
+for(const p of PLACES){
+  const b=document.createElement("button"); b.className="pill"; b.textContent=p.name; b.dataset.d=p.d;
+  b.addEventListener("click",()=>{ Ds.value=Math.log10(p.d); render(); }); chips.appendChild(b);
+}
+const nudge=f=>{ Ds.value=Math.min(Math.max(+Ds.value+Math.log10(f),+Ds.min),+Ds.max); render(); };
+document.getElementById("half").addEventListener("click",()=>nudge(0.5));
+document.getElementById("dbl").addEventListener("click",()=>nudge(2));
+document.getElementById("ten").addEventListener("click",()=>nudge(10));
+for(const c of [tExt,As,Am]) c.addEventListener("input",render);
+
+pre.value=2; Ls.value=Math.log10(STARS[2].L); Ds.value=Math.log10(STARS[2].d);
+render();
+</script>
+</body>
+</html>

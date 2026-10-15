@@ -12,6 +12,10 @@ Companion repository: [Astro_Code](https://github.com/mjcowley/Astro_Code), a co
 | --- | --- |
 | [Redshift Explorer](https://mjcowley.github.io/astro_demos/redshift-explorer/) | Drag a slider to redshift a template galaxy spectrum through a set of optical and near-infrared filters. |
 | [Blackbody Curve and Colour Index](https://mjcowley.github.io/astro_demos/blackbody/) | Planck curves with Wien's law, the Stefan-Boltzmann flux and a synthetic B&minus;V colour index. |
+| [HR Diagram and Stellar Evolution](https://mjcowley.github.io/astro_demos/hr-diagram/) | Pick a 0.3, 1, 5 or 20 solar-mass star and evolve it off the main sequence, with a timeline of how long each phase lasts. |
+| [Magnitudes and Distance Modulus](https://mjcowley.github.io/astro_demos/magnitudes/) | Move a star nearer or further to explore the inverse square law, the magnitude scale, m&minus;M and dust extinction. |
+| [Exoplanet Transit Light Curve](https://mjcowley.github.io/astro_demos/transit/) | Change the planet size, orbital period and impact parameter and watch the transit dip respond, with optional limb darkening and noise. |
+| [Hubble Diagram Fitter](https://mjcowley.github.io/astro_demos/hubble/) | Fit Hubble's 1929 data or a simulated modern survey to measure H&#8320; and the Hubble time. |
 
 ## Embedding in Canvas
 

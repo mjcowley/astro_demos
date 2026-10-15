@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HR Diagram and Stellar Evolution</title>
+<style>
+  :root{
+    --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
+    --panel:#0d1826; --panel-edge:#22354c;
+    --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f6f8;padding:16px 8px}
+  .app{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 18px 10px}
+  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.01em}
+  header .sub{font-size:12px;color:var(--muted)}
+  .plotwrap{background:var(--panel);border-top:1px solid var(--panel-edge);border-bottom:1px solid var(--panel-edge)}
+  svg{display:block;width:100%;height:auto}
+  .masses{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:14px 18px 4px;font-size:13px}
+  .masses .lbl{color:var(--muted);margin-right:4px}
+  .pill{font:inherit;font-size:13px;padding:6px 13px;border:1px solid var(--line);background:#fff;border-radius:99px;cursor:pointer;color:var(--ink)}
+  .pill:hover{border-color:var(--accent)}
+  .pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .controls{padding:10px 18px 6px;display:flex;flex-wrap:wrap;gap:16px;align-items:center}
+  .btn{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:6px;cursor:pointer;min-width:78px}
+  .btn.ghost{background:#fff;color:var(--accent)}
+  .abox{font-family:var(--mono);font-size:22px;font-weight:600;min-width:220px}
+  .abox small{font-size:12px;color:var(--muted);font-weight:400;display:block}
+  input[type=range]{flex:1;min-width:220px;accent-color:var(--accent);height:28px}
+  .toggles{display:flex;gap:14px;flex-wrap:wrap;padding:0 18px 6px;font-size:13px;color:var(--ink)}
+  .toggles label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .readouts{display:flex;gap:24px;flex-wrap:wrap;padding:4px 18px 10px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .readouts b{color:var(--ink);font-weight:600}
+  .phase{margin:2px 18px 12px;padding:10px 14px;border-left:4px solid var(--accent);background:#f2f6fa;border-radius:0 6px 6px 0;font-size:13.5px;line-height:1.5}
+  .phase .pname{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:650;margin-bottom:2px}
+  .timeline{padding:2px 18px 14px}
+  .tl-head{font-size:12px;color:var(--muted);margin-bottom:12px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .tl-head b{color:var(--ink);font-family:var(--mono);font-weight:600}
+  .tl-bar{position:relative;height:16px;display:flex;border-radius:4px;background:#eef2f6;margin-bottom:22px}
+  .tl-bar .s{height:100%}
+  .tl-bar .s:first-child{border-radius:4px 0 0 4px}
+  .tl-mark{position:absolute;top:-4px;width:2px;height:24px;background:var(--ink);transform:translateX(-1px)}
+  .tl-mark::after{content:"";position:absolute;left:-4px;top:-6px;border:5px solid transparent;border-top-color:var(--ink)}
+  .tl-ref{position:absolute;top:18px;font-size:10.5px;color:var(--muted);white-space:nowrap;transform:translateX(-50%)}
+  .tl-ref.l{transform:translateX(-4px)}
+  .tl-ref.l::before{left:4px}
+  .tl-ref::before{content:"";position:absolute;left:50%;top:-6px;width:1px;height:6px;background:var(--muted)}
+  .tl-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted)}
+  .tl-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+  .tl-legend b{color:var(--ink);font-family:var(--mono);font-weight:600}
+  footer{padding:10px 18px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+  @media (max-width:560px){ header{flex-direction:column;gap:2px} .abox{font-size:18px;min-width:0} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>HR Diagram and Stellar Evolution</h1>
+    <div class="sub">Pick a starting mass, then evolve the star and watch it leave the main sequence</div>
+  </header>
+
+  <div class="plotwrap"><svg id="plot" viewBox="0 0 920 520" role="img" aria-label="Hertzsprung-Russell diagram with an evolving star"></svg></div>
+
+  <div class="masses" id="masses"><span class="lbl">Initial mass:</span></div>
+
+  <div class="controls">
+    <button class="btn" id="play">&#9654; Play</button>
+    <button class="btn ghost" id="reset">Reset</button>
+    <div class="abox"><small>age</small><span id="age">0 yr</span></div>
+    <input id="u" type="range" min="0" max="1" step="any" value="0" aria-label="Evolutionary stage">
+  </div>
+
+  <div class="toggles">
+    <label><input id="tTrack" type="checkbox" checked> Full track</label>
+    <label><input id="tField" type="checkbox" checked> Other stars</label>
+    <label><input id="tRad" type="checkbox"> Lines of constant radius</label>
+    <label><input id="tReg" type="checkbox" checked> Region labels</label>
+    <label><input id="tSun" type="checkbox" checked> Sun for reference</label>
+  </div>
+
+  <div class="readouts">
+    <span>temperature <b id="rT">5,600 K</b></span>
+    <span>luminosity <b id="rL">0.72 L&#9737;</b></span>
+    <span>radius <b id="rR">0.89 R&#9737;</b></span>
+    <span>class <b id="rC">G</b></span>
+  </div>
+
+  <div class="phase" id="phase"><span class="pname" id="pname">Main sequence</span><span id="ptxt"></span></div>
+
+  <div class="timeline">
+    <div class="tl-head"><span>How the star's life is divided up</span><span>fusion lifetime <b id="life">12.4 billion yr</b></span></div>
+    <div class="tl-bar" id="tlbar"></div>
+    <div class="tl-legend" id="tllegend"></div>
+  </div>
+
+  <footer>
+    Tracks are simplified sketches of published stellar models for single, non-rotating stars of solar composition, intended for qualitative teaching; ages and positions are approximate. Radius follows from L = 4&pi;R&sup2;&sigma;T&#8308;. The background stars are illustrative, not a real catalogue.
+    The 0.3 M&#9737; track beyond today is a theoretical prediction, because the Universe isn't yet old enough for any red dwarf to have left the main sequence.
+    <br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.
+  </footer>
+</div>
+
+<script>
+"use strict";
+// ---------- colour of a blackbody (as in the blackbody demo) ----------
+const Hp=6.62607015e-34, Cl=2.99792458e8, Kb=1.380649e-23;
+function planck(lA, T){
+  const l=lA*1e-10, x=Hp*Cl/(l*Kb*T);
+  if(x>700) return 0;
+  return (2*Hp*Cl*Cl/Math.pow(l,5))/(Math.exp(x)-1);
+}
+function pg(x,mu,s1,s2){ const t=(x-mu)*(x<mu?1/s1:1/s2); return Math.exp(-0.5*t*t); }
+function cmf(nm){
+  return [ 1.056*pg(nm,599.8,37.9,31.0)+0.362*pg(nm,442.0,16.0,26.7)-0.065*pg(nm,501.1,20.4,26.2),
+           0.821*pg(nm,568.8,46.9,40.5)+0.286*pg(nm,530.9,16.3,31.1),
+           1.217*pg(nm,437.0,11.8,36.0)+0.681*pg(nm,459.0,26.0,13.8) ];
+}
+const colCache=new Map();
+function starColour(T){
+  const key=Math.round(Math.log10(T)*200);
+  if(colCache.has(key)) return colCache.get(key);
+  T=Math.pow(10,key/200);
+  let X=0,Y=0,Z=0;
+  for(let nm=380;nm<=780;nm+=5){
+    const b=planck(nm*10,T), m=cmf(nm);
+    X+=b*m[0]; Y+=b*m[1]; Z+=b*m[2];
+  }
+  const s=X+Y+Z; X/=s; Y/=s; Z/=s;
+  let r= 3.2406*X-1.5372*Y-0.4986*Z,
+      g=-0.9689*X+1.8758*Y+0.0415*Z,
+      b= 0.0557*X-0.2040*Y+1.0570*Z;
+  const gam=v=>{ v=Math.max(v,0); return v<=0.0031308?12.92*v:1.055*Math.pow(v,1/2.4)-0.055; };
+  r=gam(r); g=gam(g); b=gam(b);
+  const mx=Math.max(r,g,b)||1; r/=mx; g/=mx; b/=mx;
+  const h=v=>Math.round(Math.min(Math.max(v,0),1)*255).toString(16).padStart(2,"0");
+  const c="#"+h(r)+h(g)+h(b);
+  colCache.set(key,c);
+  return c;
+}
+function specClass(T){
+  if(T>=30000) return "O"; if(T>=10000) return "B"; if(T>=7500) return "A";
+  if(T>=6000)  return "F"; if(T>=5200)  return "G"; if(T>=3700) return "K"; return "M";
+}
+
+// ---------- evolutionary phases ----------
+const PHASES={
+  ms:    {name:"Main sequence", col:"#2a9d8f",
+          txt:"Hydrogen is fusing into helium in the core. This is a stable, long-lived stage, and it's where a star spends most of its life. The star slowly brightens as helium builds up in the core."},
+  sg:    {name:"Subgiant", col:"#e9c46a",
+          txt:"The hydrogen in the core has run out. Hydrogen now fuses in a thin shell around an inert helium core, and the outer layers begin to expand and cool."},
+  gap:   {name:"Crossing the Hertzsprung gap", col:"#e9c46a",
+          txt:"The core has run out of hydrogen. The star swells and cools so quickly that we rarely catch a star in this stage, which leaves a gap in the HR diagram between the main sequence and the giants."},
+  rgb:   {name:"Red giant branch", col:"#f4a261",
+          txt:"The envelope swells to many times its original size. The surface cools and turns red, but the enormous surface area makes the star far more luminous than before."},
+  flash: {name:"Helium flash", col:"#e76f51",
+          txt:"The core is hot enough (about 100 million K) for helium to start fusing. In Sun-like stars this happens suddenly in a 'flash'. The star then rearranges itself, shrinking and becoming less luminous."},
+  hb:    {name:"Core helium burning", col:"#e76f51",
+          txt:"Helium is fusing into carbon and oxygen in the core, with hydrogen still burning in a shell. This stage is much shorter than the main sequence, because helium fusion releases less energy."},
+  loop:  {name:"Core helium burning (blue loop)", col:"#e76f51",
+          txt:"Helium is fusing into carbon and oxygen in the core. In stars of a few solar masses the star contracts and heats up for a while, tracing a 'blue loop' before heading back to the red."},
+  rsg:   {name:"Red supergiant", col:"#d62828",
+          txt:"A massive star fuses heavier and heavier elements (helium, carbon, neon, oxygen, silicon) in its core, each stage faster than the last. Its outer layers swell to hundreds of times the Sun's radius."},
+  agb:   {name:"Asymptotic giant branch", col:"#9d4edd",
+          txt:"The core is now carbon and oxygen and no longer fusing. Helium and hydrogen burn in shells around it, and the star becomes larger and brighter than ever while strong winds carry away its outer layers."},
+  pn:    {name:"Planetary nebula", col:"#4cc9f0",
+          txt:"The last outer layers are blown off, forming a glowing planetary nebula. The exposed hot core races across to the left of the diagram at almost constant luminosity."},
+  wd:    {name:"White dwarf", col:"#adb5bd",
+          txt:"Fusion has stopped. What's left is a white dwarf: a carbon-oxygen core roughly the size of the Earth. With no energy source it slowly cools and fades, moving down and to the right."},
+  sn:    {name:"Core-collapse supernova", col:"#ffffff",
+          txt:"Fusion has built up an iron core, and fusing iron can't release energy. The core collapses in under a second and the star explodes as a supernova, leaving behind a neutron star (or, for heavier stars, a black hole)."},
+  rdblue:{name:"Blue dwarf (predicted)", col:"#5b8dd9",
+          txt:"Red dwarfs are fully convective, so they mix and use up nearly all their hydrogen. Models predict they'll slowly get hotter and bluer, never becoming giants. None has done this yet, as the Universe is only 13.8 billion years old."},
+  hewd:  {name:"Helium white dwarf (predicted)", col:"#adb5bd",
+          txt:"With its hydrogen gone, the star contracts into a white dwarf made of helium. It's never hot enough to fuse helium, so it simply cools and fades."},
+};
+
+// ---------- tracks: age (yr), log Teff, log L/Lsun, phase of the segment that starts here ----------
+const TRACKS=[
+  {key:"0.3", label:"0.3 M☉ (red dwarf)", pts:[
+    {a:0,       lt:3.535, ll:-1.92, ph:"ms"},
+    {a:1.38e10, lt:3.536, ll:-1.91, ph:"ms", tag:"Universe today"},
+    {a:4.0e11,  lt:3.560, ll:-1.72, ph:"ms"},
+    {a:8.0e11,  lt:3.620, ll:-1.42, ph:"rdblue"},
+    {a:9.5e11,  lt:3.740, ll:-1.20, ph:"rdblue"},
+    {a:1.0e12,  lt:4.100, ll:-1.90, ph:"hewd"},
+    {a:1.05e12, lt:3.750, ll:-3.60, ph:"hewd"},
+  ]},
+  {key:"1", label:"1 M☉ (like the Sun)", pts:[
+    {a:0,          lt:3.748, ll:-0.14, ph:"ms"},
+    {a:4.6e9,      lt:3.7612,ll: 0.00, ph:"ms", tag:"Sun today"},
+    {a:1.00e10,    lt:3.756, ll: 0.33, ph:"sg"},
+    {a:1.09e10,    lt:3.690, ll: 0.42, ph:"rgb"},
+    {a:1.19e10,    lt:3.630, ll: 1.45, ph:"rgb"},
+    {a:1.225e10,   lt:3.490, ll: 3.38, ph:"flash"},
+    {a:1.2251e10,  lt:3.680, ll: 1.65, ph:"hb"},
+    {a:1.235e10,   lt:3.670, ll: 1.78, ph:"agb"},
+    {a:1.2362e10,  lt:3.550, ll: 2.80, ph:"agb"},
+    {a:1.2365e10,  lt:3.470, ll: 3.55, ph:"pn"},
+    {a:1.236501e10,lt:5.000, ll: 3.50, ph:"wd"},
+    {a:1.23655e10, lt:5.080, ll: 2.20, ph:"wd"},
+    {a:1.30e10,    lt:4.650, ll:-0.60, ph:"wd"},
+    {a:1.70e10,    lt:3.950, ll:-3.60, ph:"wd"},
+  ]},
+  {key:"5", label:"5 M☉", pts:[
+    {a:0,         lt:4.230, ll:2.78, ph:"ms"},
+    {a:8.0e7,     lt:4.180, ll:3.00, ph:"ms"},
+    {a:9.6e7,     lt:4.150, ll:3.10, ph:"gap"},
+    {a:9.65e7,    lt:3.700, ll:2.92, ph:"rgb"},
+    {a:9.7e7,     lt:3.620, ll:3.22, ph:"loop"},
+    {a:1.03e8,    lt:4.020, ll:3.05, ph:"loop"},
+    {a:1.14e8,    lt:3.660, ll:3.18, ph:"agb"},
+    {a:1.16e8,    lt:3.550, ll:3.75, ph:"agb"},
+    {a:1.165e8,   lt:3.500, ll:4.10, ph:"pn"},
+    {a:1.16501e8, lt:5.150, ll:4.05, ph:"wd"},
+    {a:1.1652e8,  lt:5.200, ll:2.60, ph:"wd"},
+    {a:1.0e9,     lt:4.550, ll:-0.60,ph:"wd"},
+    {a:3.0e9,     lt:4.000, ll:-3.00,ph:"wd"},
+  ]},
+  {key:"20", label:"20 M☉ (massive)", pts:[
+    {a:0,      lt:4.550, ll:4.62, ph:"ms"},
+    {a:6.0e6,  lt:4.490, ll:4.82, ph:"ms"},
+    {a:8.0e6,  lt:4.430, ll:4.95, ph:"gap"},
+    {a:8.05e6, lt:4.100, ll:5.02, ph:"gap"},
+    {a:8.1e6,  lt:3.600, ll:5.05, ph:"rsg"},
+    {a:8.9e6,  lt:3.550, ll:5.20, ph:"rsg"},
+    {a:9.0e6,  lt:3.540, ll:5.28, ph:"sn"},
+  ]},
+];
+const ENDS=new Set(["wd","hewd","sn"]);   // phases after fusion has stopped
+
+// ---------- plot geometry ----------
+const svg=document.getElementById("plot"), NS="http://www.w3.org/2000/svg";
+const MONO='ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace';
+const W=920,H=520, ML=64,MR=18,MT=36,MB=46;
+const LTMAX=5.25, LTMIN=3.40, LLMIN=-4.5, LLMAX=6.4;
+const LTSUN=Math.log10(5772);
+const xOf=lt=>ML+(LTMAX-lt)/(LTMAX-LTMIN)*(W-ML-MR);
+const yOf=ll=>MT+(LLMAX-ll)/(LLMAX-LLMIN)*(H-MT-MB);
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(a,s){const t=el("text",a);t.textContent=s;return t;}
+const SUP=n=>String(n).replace(/[0-9-]/g,c=>"⁰¹²³⁴⁵⁶⁷⁸⁹"[+c]||"⁻");
+
+// zero-age main sequence, used for the background stars and the label
+const ZAMS=[[4.70,5.40],[4.55,4.62],[4.40,3.90],[4.23,2.78],[4.00,1.60],[3.90,1.00],[3.80,0.35],
+            [3.748,-0.14],[3.66,-0.70],[3.58,-1.30],[3.535,-1.92],[3.49,-2.70],[3.45,-3.30]];
+function zams(lt){
+  for(let i=0;i<ZAMS.length-1;i++){
+    const [a,la]=ZAMS[i],[b,lb]=ZAMS[i+1];
+    if(lt<=a&&lt>=b) return la+(lt-a)/(b-a)*(lb-la);
+  }
+  return lt>ZAMS[0][0]?ZAMS[0][1]:ZAMS[ZAMS.length-1][1];
+}
+
+// illustrative background population from a fixed seed
+function rng(seed){ return ()=>{ seed|=0; seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+const FIELD=(()=>{
+  const r=rng(1929), out=[], gs=()=>{let s=0;for(let i=0;i<6;i++)s+=r();return s-3;};
+  for(let i=0;i<260;i++){ const lt=3.46+1.18*Math.pow(r(),1.9); out.push([lt, zams(lt)+0.35*r()-0.04]); }
+  for(let i=0;i<70;i++){ const ll=0.4+2.7*r(); out.push([3.70-(ll-0.4)*0.075+0.012*gs(), ll]); }
+  for(let i=0;i<30;i++) out.push([3.675+0.012*gs(), 1.68+0.10*gs()]);
+  for(let i=0;i<22;i++) out.push([3.52+1.0*r(), 4.5+1.1*r()]);
+  for(let i=0;i<34;i++){ const lt=3.80+0.75*r(), lr=Math.log10(0.012)+0.08*gs(); out.push([lt, 2*lr+4*(lt-LTSUN)]); }
+  return out.map(([lt,ll])=>({lt,ll,c:starColour(Math.pow(10,lt))}));
+})();
+
+// ---------- state ----------
+let track=TRACKS[1], cum=[], playing=false, last=0;
+const us=document.getElementById("u");
+const tTrack=document.getElementById("tTrack"), tField=document.getElementById("tField"),
+      tRad=document.getElementById("tRad"), tReg=document.getElementById("tReg"), tSun=document.getElementById("tSun");
+
+// slider position is spread along the path so every phase gets room, with extra for the main sequence
+function buildCum(){
+  const p=track.pts; cum=[0];
+  for(let i=0;i<p.length-1;i++){
+    const dx=(p[i+1].lt-p[i].lt)/(LTMAX-LTMIN), dy=(p[i+1].ll-p[i].ll)/(LLMAX-LLMIN);
+    cum.push(cum[i]+Math.hypot(dx,dy)+(p[i].ph==="ms"?0.12:0.03));
+  }
+  const tot=cum[cum.length-1]; cum=cum.map(c=>c/tot);
+}
+function stateAt(u){
+  const p=track.pts;
+  if(u>=1){ const q=p[p.length-1]; return {lt:q.lt,ll:q.ll,a:q.a,ph:q.ph,i:p.length-1,f:0}; }
+  let i=0; while(i<p.length-2&&cum[i+1]<=u) i++;
+  const f=(u-cum[i])/(cum[i+1]-cum[i]), A=p[i], B=p[i+1];
+  return {lt:A.lt+f*(B.lt-A.lt), ll:A.ll+f*(B.ll-A.ll), a:A.a+f*(B.a-A.a), ph:A.ph, i, f};
+}
+
+// ---------- drawing ----------
+const gBg=el("g",{}), gFg=el("g",{});
+function drawBg(){
+  gBg.textContent="";
+  const defs=el("defs",{}), cp=el("clipPath",{id:"area"});
+  cp.appendChild(el("rect",{x:ML,y:MT,width:W-ML-MR,height:H-MT-MB}));
+  defs.appendChild(cp); gBg.appendChild(defs);
+
+  // grid
+  for(const T of [100000,50000,20000,10000,5000,3000]){
+    const x=xOf(Math.log10(T));
+    gBg.appendChild(el("line",{x1:x,x2:x,y1:MT,y2:H-MB,stroke:"#1c2c42","stroke-width":1}));
+    gBg.appendChild(txt({x,y:H-MB+16,fill:"#7f95b0","font-size":11,"text-anchor":"middle","font-family":MONO},T.toLocaleString()));
+  }
+  for(let e=-4;e<=6;e++){
+    const y=yOf(e);
+    gBg.appendChild(el("line",{x1:ML,x2:W-MR,y1:y,y2:y,stroke:"#1c2c42","stroke-width":1}));
+    gBg.appendChild(txt({x:ML-8,y:y+4,fill:"#7f95b0","font-size":11,"text-anchor":"end","font-family":MONO},e===0?"1":"10"+SUP(e)));
+  }
+  gBg.appendChild(txt({x:(ML+W-MR)/2,y:H-8,fill:"#a9bbcf","font-size":12,"text-anchor":"middle"},
+    "← hotter\u2003\u2003Surface temperature (K)\u2003\u2003cooler →"));
+  const ym=(MT+H-MB)/2;
+  gBg.appendChild(txt({x:16,y:ym,fill:"#a9bbcf","font-size":12,"text-anchor":"middle",transform:`rotate(-90 16 ${ym})`},
+    "Luminosity (Sun = 1)"));
+  // spectral classes along the top
+  for(const [c,T] of [["O",42000],["B",20000],["A",8750],["F",6750],["G",5600],["K",4450],["M",3250]]){
+    gBg.appendChild(txt({x:xOf(Math.log10(T)),y:MT-12,fill:starColour(T),"font-size":12,"font-weight":600,"text-anchor":"middle","font-family":MONO},c));
+  }
+  gBg.appendChild(txt({x:ML,y:MT-12,fill:"#7f95b0","font-size":10.5,"font-family":MONO},"class"));
+
+  const area=el("g",{"clip-path":"url(#area)"}); gBg.appendChild(area);
+
+  // lines of constant radius
+  if(tRad.checked){
+    const k=(4*(H-MT-MB)/(LLMAX-LLMIN))/((W-ML-MR)/(LTMAX-LTMIN)), ang=Math.atan(k)*180/Math.PI;
+    for(const R of [0.01,0.1,1,10,100,1000]){
+      const lr=Math.log10(R), llAt=lt=>2*lr+4*(lt-LTSUN);
+      area.appendChild(el("line",{x1:xOf(LTMAX),y1:yOf(llAt(LTMAX)),x2:xOf(LTMIN),y2:yOf(llAt(LTMIN)),
+        stroke:"#3d5675","stroke-width":1,"stroke-dasharray":"5 5"}));
+      let lt=(LLMIN+0.45-2*lr)/4+LTSUN; if(lt<LTMIN+0.12) lt=LTMIN+0.12;
+      if(lt>LTMAX-0.05) continue;
+      const x=xOf(lt), y=yOf(llAt(lt))-5;
+      area.appendChild(txt({x,y,fill:"#6f88a6","font-size":10.5,"text-anchor":"middle","font-family":MONO,
+        transform:`rotate(${ang.toFixed(1)} ${x} ${y})`},R+" R☉"));
+    }
+  }
+  // background stars
+  if(tField.checked){
+    for(const s of FIELD) area.appendChild(el("circle",{cx:xOf(s.lt),cy:yOf(s.ll),r:1.9,fill:s.c,"fill-opacity":0.45}));
+  }
+  // region labels
+  if(tReg.checked){
+    const lab=(lt,ll,s,rot)=>{ const x=xOf(lt),y=yOf(ll);
+      area.appendChild(txt({x,y,fill:"#c3d2e2","fill-opacity":0.75,"font-size":12,"font-weight":600,"letter-spacing":"0.12em",
+        "text-anchor":"middle",transform:rot?`rotate(${rot} ${x} ${y})`:""},s)); };
+    lab(4.18,3.05,"MAIN SEQUENCE",27);
+    lab(3.86,2.35,"GIANTS");
+    lab(4.25,5.95,"SUPERGIANTS");
+    lab(4.42,-3.3,"WHITE DWARFS");
+  }
+  // the Sun for reference
+  if(tSun.checked){
+    const x=xOf(LTSUN), y=yOf(0);
+    area.appendChild(el("circle",{cx:x,cy:y,r:5,fill:"none",stroke:"#ffd166","stroke-width":1.3}));
+    area.appendChild(el("circle",{cx:x,cy:y,r:1.4,fill:"#ffd166"}));
+    area.appendChild(txt({x:x+8,y:y+14,fill:"#ffd166","font-size":10.5,"font-family":MONO},"Sun"));
+  }
+  // full track
+  if(tTrack.checked){
+    const p=track.pts;
+    let d=""; p.forEach((q,i)=>d+=(i?"L":"M")+xOf(q.lt).toFixed(1)+" "+yOf(q.ll).toFixed(1)+" ");
+    area.appendChild(el("path",{d,fill:"none",stroke:"var(--ghost)","stroke-width":1.2,"stroke-dasharray":"4 4","stroke-opacity":0.7}));
+  }
+  for(const q of track.pts) if(q.tag){
+    const x=xOf(q.lt), y=yOf(q.ll);
+    area.appendChild(el("circle",{cx:x,cy:y,r:2.5,fill:"#e9eef4"}));
+    const right=x>W-MR-120;
+    area.appendChild(txt({x:right?x-9:x+9,y:y-8,fill:"#e9eef4","font-size":11,"font-family":MONO,"text-anchor":right?"end":"start"},q.tag));
+  }
+}
+
+function burst(cx,cy,r1,r2,n){
+  let d="";
+  for(let i=0;i<2*n;i++){ const a=Math.PI*i/n-Math.PI/2, r=i%2?r2:r1;
+    d+=(i?"L":"M")+(cx+r*Math.cos(a)).toFixed(1)+" "+(cy+r*Math.sin(a)).toFixed(1)+" "; }
+  return d+"Z";
+}
+function drawFg(s){
+  gFg.textContent="";
+  const p=track.pts, g=el("g",{"clip-path":"url(#area)"}); gFg.appendChild(g);
+  // trail coloured by phase
+  for(let i=0;i<=s.i&&i<p.length-1;i++){
+    const A=p[i], B=i<s.i?p[i+1]:s;
+    g.appendChild(el("line",{x1:xOf(A.lt),y1:yOf(A.ll),x2:xOf(B.lt),y2:yOf(B.ll),
+      stroke:PHASES[A.ph].col,"stroke-width":2.6,"stroke-linecap":"round"}));
+  }
+  const x=xOf(s.lt), y=yOf(s.ll);
+  if(s.ph==="sn"){
+    g.appendChild(el("path",{d:burst(x,y,26,9,12),fill:"#fff4c2","fill-opacity":0.95,stroke:"#ffb703","stroke-width":1.5}));
+    g.appendChild(txt({x:x-34,y:y+5,fill:"#fff4c2","font-size":13,"font-weight":650,"text-anchor":"end"},"Supernova!"));
+    return;
+  }
+  const T=Math.pow(10,s.lt), c=starColour(T);
+  const R=Math.sqrt(Math.pow(10,s.ll))*Math.pow(5772/T,2);
+  const r=Math.min(Math.max(3.5+2.4*(Math.log10(R)+2),3),17);
+  g.appendChild(el("circle",{cx:x,cy:y,r:r*2.1,fill:c,"fill-opacity":0.18}));
+  g.appendChild(el("circle",{cx:x,cy:y,r,fill:c,stroke:"#fff","stroke-width":1}));
+}
+
+// ---------- readouts and timeline ----------
+function fmtAge(a){
+  const n=v=>String(Number(v.toPrecision(4)));
+  if(a>=1e12) return n(a/1e12)+" trillion yr";
+  if(a>=1e9)  return n(a/1e9)+" billion yr";
+  if(a>=1e6)  return n(a/1e6)+" million yr";
+  return Math.round(a).toLocaleString()+" yr";
+}
+function fmtNum(v){
+  if(v>=1000) return Number(v.toPrecision(3)).toLocaleString();
+  if(v>=0.01) return String(Number(v.toPrecision(3)));
+  const e=Math.floor(Math.log10(v)); return (v/Math.pow(10,e)).toFixed(1)+"×10"+SUP(e);
+}
+function endIndex(){ return track.pts.findIndex(q=>ENDS.has(q.ph)); }
+function buildTimeline(){
+  const p=track.pts, ie=endIndex(), total=p[ie].a, groups=[];
+  for(let i=0;i<ie;i++){
+    const ph=p[i].ph, d=p[i+1].a-p[i].a;
+    if(groups.length&&groups[groups.length-1].ph===ph) groups[groups.length-1].d+=d;
+    else groups.push({ph,d});
+  }
+  const bar=document.getElementById("tlbar"), leg=document.getElementById("tllegend");
+  bar.textContent=""; leg.textContent="";
+  for(const g of groups){
+    const pct=100*g.d/total, s=document.createElement("div");
+    s.className="s"; s.style.width=pct+"%"; s.style.background=PHASES[g.ph].col;
+    s.title=PHASES[g.ph].name+": "+fmtAge(g.d);
+    bar.appendChild(s);
+    const it=document.createElement("span");
+    it.innerHTML=`<i style="background:${PHASES[g.ph].col}"></i>${PHASES[g.ph].name} <b>${pct>=0.1?pct.toFixed(1):"<0.1"}%</b>`;
+    leg.appendChild(it);
+  }
+  for(const q of p) if(q.tag&&q.a>0&&q.a<total){
+    const r=document.createElement("div"); r.className="tl-ref"+(q.a/total<0.08?" l":"");
+    r.style.left=(100*q.a/total)+"%"; r.textContent=q.tag; bar.appendChild(r);
+  }
+  const m=document.createElement("div"); m.className="tl-mark"; m.id="tlmark"; bar.appendChild(m);
+  document.getElementById("life").textContent=fmtAge(total);
+}
+function updateText(s){
+  const T=Math.pow(10,s.lt), L=Math.pow(10,s.ll), R=Math.sqrt(L)*Math.pow(5772/T,2), sn=s.ph==="sn";
+  document.getElementById("age").textContent=fmtAge(s.a);
+  document.getElementById("rT").textContent=sn?"–":Math.round(T/10)*10>=1000?(Math.round(T/10)*10).toLocaleString()+" K":Math.round(T)+" K";
+  document.getElementById("rL").innerHTML=sn?"–":fmtNum(L)+" L☉";
+  document.getElementById("rR").innerHTML=sn?"–":fmtNum(R)+" R☉";
+  document.getElementById("rC").textContent=sn||ENDS.has(s.ph)?"–":specClass(T);
+  const P=PHASES[s.ph];
+  document.getElementById("pname").textContent=P.name;
+  document.getElementById("ptxt").textContent=P.txt;
+  document.getElementById("phase").style.borderLeftColor=P.col==="#ffffff"?"#ffb703":P.col;
+  const total=track.pts[endIndex()].a;
+  document.getElementById("tlmark").style.left=Math.min(100*s.a/total,100)+"%";
+}
+
+function render(){ const s=stateAt(+us.value); drawFg(s); updateText(s); }
+function setTrack(t){
+  track=t; buildCum(); buildTimeline(); drawBg(); us.value=0; stop(); render();
+  for(const b of document.querySelectorAll(".pill")) b.classList.toggle("on", b.dataset.k===t.key);
+}
+
+// ---------- animation ----------
+const playBtn=document.getElementById("play");
+function stop(){ playing=false; playBtn.innerHTML="&#9654; Play"; }
+function tick(now){
+  if(!playing) return;
+  const dt=Math.min((now-last)/1000,0.1); last=now;
+  let u=+us.value+dt/16;
+  if(u>=1){ u=1; stop(); }
+  us.value=u; render();
+  if(playing) requestAnimationFrame(tick);
+}
+playBtn.addEventListener("click",()=>{
+  if(playing){ stop(); return; }
+  if(+us.value>=1) us.value=0;
+  playing=true; playBtn.innerHTML="&#10074;&#10074; Pause"; last=performance.now(); requestAnimationFrame(tick);
+});
+document.getElementById("reset").addEventListener("click",()=>{ stop(); us.value=0; render(); });
+us.addEventListener("input",()=>{ stop(); render(); });
+for(const c of [tTrack,tField,tRad,tReg,tSun]) c.addEventListener("input",()=>{ drawBg(); render(); });
+
+const box=document.getElementById("masses");
+for(const t of TRACKS){
+  const b=document.createElement("button"); b.className="pill"; b.dataset.k=t.key; b.textContent=t.label;
+  b.addEventListener("click",()=>setTrack(t)); box.appendChild(b);
+}
+svg.appendChild(gBg); svg.appendChild(gFg);
+setTrack(TRACKS[1]);
+</script>
+</body>
+</html>
