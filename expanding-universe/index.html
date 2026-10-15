@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Expanding Universe</title>
+<style>
+  :root{
+    --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
+    --panel:#0d1826; --panel-edge:#22354c;
+    --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f6f8;padding:16px 8px}
+  .app{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 18px 10px}
+  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.01em}
+  header .sub{font-size:12px;color:var(--muted)}
+  .plotwrap{background:var(--panel);border-top:1px solid var(--panel-edge);border-bottom:1px solid var(--panel-edge)}
+  svg{display:block;width:100%;height:auto;touch-action:none}
+  .controls{padding:12px 18px 4px;display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center}
+  .btn{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:6px;cursor:pointer;min-width:84px}
+  .btn.ghost{background:#fff;color:var(--accent)}
+  .abox{font-family:var(--mono);font-size:22px;font-weight:600;min-width:200px}
+  .abox small{font-size:12px;color:var(--muted);font-weight:400;display:block}
+  input[type=range]{flex:1;min-width:220px;accent-color:var(--accent);height:28px}
+  .toggles{display:flex;gap:14px;flex-wrap:wrap;padding:4px 18px 6px;font-size:13px;color:var(--ink)}
+  .toggles label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .readouts{display:flex;gap:10px 24px;flex-wrap:wrap;padding:4px 18px 10px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .readouts b{color:var(--ink);font-weight:600}
+  .note{margin:2px 18px 12px;padding:10px 14px;border-left:4px solid var(--accent);background:#f2f6fa;border-radius:0 6px 6px 0;font-size:13.5px;line-height:1.55}
+  .hint{padding:0 18px 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  footer{padding:10px 18px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+  @media (max-width:560px){ header{flex-direction:column;gap:2px} .abox{font-size:18px;min-width:0} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>The Expanding Universe</h1>
+    <div class="sub">Watch space stretch, then click any galaxy to see the view from there</div>
+  </header>
+
+  <div class="plotwrap"><svg id="plot" viewBox="0 0 920 470" role="img" aria-label="Galaxies moving apart as space expands, and their speeds against distance"></svg></div>
+
+  <div class="controls">
+    <button class="btn" id="play">&#9654; Expand</button>
+    <button class="btn ghost" id="reset">Reset</button>
+    <div class="abox"><small>distances have grown by</small><span id="aval">1.00</span> ×</div>
+    <input id="a" type="range" min="1" max="2.5" step="any" aria-label="Scale factor">
+  </div>
+
+  <div class="toggles">
+    <label><input id="tArrows" type="checkbox" checked> Velocity arrows</label>
+    <label><input id="tGrid" type="checkbox" checked> Stretching grid</label>
+    <label><input id="tTrails" type="checkbox"> Trails</label>
+  </div>
+
+  <div class="readouts" id="readouts"></div>
+  <div class="note" id="note"></div>
+
+  <div class="hint">
+    <b>What's going on:</b> the galaxies aren't flying through space away from a central point. Space itself is stretching, carrying the galaxies along like dots drawn on a balloon or raisins in rising bread.
+    Because every distance grows by the same factor, a galaxy twice as far away moves away twice as fast, giving Hubble's law <b>v = H&#8320; d</b>. Click a different galaxy and you'll find exactly the same pattern from there: every galaxy sees all the others rushing away, so there's no centre.
+  </div>
+
+  <footer>
+    A two-dimensional slice through a uniform universe with a constant Hubble parameter of 70 km/s/Mpc, for simplicity; in reality H changes over time. Galaxies are placed at random and have no motions of their own, and the slice wraps around at its edges so that, like the real Universe, it has no edge. Nearby galaxies held together by gravity (like the Local Group) don't actually expand apart.
+    <br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.
+  </footer>
+</div>
+
+<script>
+"use strict";
+const H0=70, MPC_GYR=977.8;                       // 1/H0 = 977.8/H0 Gyr
+const BOX=1200;                                   // the universe wraps around every 1200 Mpc, so it has no edge and no centre
+const wrap=v=>v-BOX*Math.round(v/BOX);
+// galaxies scattered over a big comoving region (Mpc), fixed seed
+const GAL=(()=>{ let s=314; const r=()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; };
+  const cols=["#c3d2e2","#ffd6a5","#a9c7f0","#f5c2c7","#e9eef4"];
+  const out=[{x:0,y:0,rot:20,kind:1,col:"#a9c7f0",name:"Milky Way"}];
+  for(let i=0;i<270;i++){ const x=(r()-0.5)*BOX, y=(r()-0.5)*BOX;
+    if(Math.hypot(x,y)<40) continue;
+    out.push({x,y,rot:360*r(),kind:r()<0.6?1:0,col:cols[Math.floor(r()*cols.length)],name:"Galaxy "+(i+1)}); }
+  return out; })();
+
+let home=0, playing=false, last=0;
+const aS=document.getElementById("a"), tArrows=document.getElementById("tArrows"), tGrid=document.getElementById("tGrid"), tTrails=document.getElementById("tTrails");
+const sc=()=>+aS.value;
+
+// ---------- drawing ----------
+const svg=document.getElementById("plot"), NS="http://www.w3.org/2000/svg";
+const MONO='ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace';
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(a,s){const t=el("text",a);t.textContent=s;return t;}
+const VX=240, VY=245, VR=215, PXMPC=0.72;          // view centre, half-size, px per Mpc
+const HX0=560, HX1=890, HY0=40, HY1=400, DMAX=600, VMAX=DMAX*H0;
+const hX=d=>HX0+d/DMAX*(HX1-HX0), hY=v=>HY1-v/VMAX*(HY1-HY0);
+
+function galaxyShape(g,x,y,gal,size,isHome){
+  if(gal.kind){   // spiral: disc and bulge
+    g.appendChild(el("ellipse",{cx:x,cy:y,rx:size,ry:size*0.42,fill:gal.col,"fill-opacity":0.35,transform:`rotate(${gal.rot} ${x} ${y})`}));
+    g.appendChild(el("circle",{cx:x,cy:y,r:size*0.35,fill:gal.col}));
+  }else g.appendChild(el("ellipse",{cx:x,cy:y,rx:size*0.75,ry:size*0.55,fill:gal.col,"fill-opacity":0.85,transform:`rotate(${gal.rot} ${x} ${y})`}));
+  if(isHome) g.appendChild(el("circle",{cx:x,cy:y,r:size+7,fill:"none",stroke:"var(--spec)","stroke-width":2}));
+}
+
+function draw(){
+  const a=sc(), h=GAL[home];
+  svg.textContent="";
+  const defs=el("defs",{}), cp=el("clipPath",{id:"view"}); cp.appendChild(el("rect",{x:VX-VR,y:VY-VR,width:2*VR,height:2*VR})); defs.appendChild(cp);
+  const mk=el("marker",{id:"ar",viewBox:"0 0 10 10",refX:6,refY:5,markerWidth:5,markerHeight:5,orient:"auto"});
+  mk.appendChild(el("path",{d:"M0 0L10 5L0 10z",fill:"#ffd166"})); defs.appendChild(mk); svg.appendChild(defs);
+  svg.appendChild(txt({x:VX,y:20,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Seen from "+h.name+" (click any galaxy to move there)"));
+  svg.appendChild(el("rect",{x:VX-VR,y:VY-VR,width:2*VR,height:2*VR,fill:"#070d17",stroke:"#3d5675"}));
+  const g=el("g",{"clip-path":"url(#view)"}); svg.appendChild(g);
+  const pos=(gal,aa)=>({x:VX+wrap(gal.x-h.x)*aa*PXMPC, y:VY-wrap(gal.y-h.y)*aa*PXMPC});
+
+  // comoving grid, stretched with the scale factor
+  if(tGrid.checked){
+    const step=100;
+    const x0=Math.floor((h.x-VR/(a*PXMPC))/step)*step, x1=h.x+VR/(a*PXMPC);
+    for(let xc=x0; xc<=x1; xc+=step){ const X=VX+(xc-h.x)*a*PXMPC; g.appendChild(el("line",{x1:X,x2:X,y1:VY-VR,y2:VY+VR,stroke:"#1c2c42"})); }
+    const y0=Math.floor((h.y-VR/(a*PXMPC))/step)*step, y1=h.y+VR/(a*PXMPC);
+    for(let yc=y0; yc<=y1; yc+=step){ const Y=VY-(yc-h.y)*a*PXMPC; g.appendChild(el("line",{x1:VX-VR,x2:VX+VR,y1:Y,y2:Y,stroke:"#1c2c42"})); }
+  }
+  const pts=[];
+  for(let i=0;i<GAL.length;i++){
+    const gal=GAL[i], p=pos(gal,a);
+    if(Math.abs(p.x-VX)>VR+20||Math.abs(p.y-VY)>VR+20) continue;
+    const d=Math.hypot(wrap(gal.x-h.x),wrap(gal.y-h.y))*a;
+    if(i!==home&&Math.abs(p.x-VX)<=VR&&Math.abs(p.y-VY)<=VR) pts.push({d,v:H0*d,i});
+    if(tTrails.checked&&i!==home){ const p0=pos(gal,1); g.appendChild(el("line",{x1:p0.x,y1:p0.y,x2:p.x,y2:p.y,stroke:"#7f95b0","stroke-opacity":0.4})); }
+    if(tArrows.checked&&i!==home){
+      const L=0.11*d*PXMPC*Math.min(a,1.6);   // arrow length grows with distance
+      const ux=(p.x-VX), uy=(p.y-VY), n=Math.hypot(ux,uy)||1;
+      if(L>4) g.appendChild(el("line",{x1:p.x,y1:p.y,x2:p.x+L*ux/n,y2:p.y+L*uy/n,stroke:"#ffd166","stroke-width":1.3,"stroke-opacity":0.85,"marker-end":"url(#ar)"}));
+    }
+    const node=el("g",{style:"cursor:pointer"});
+    galaxyShape(node,p.x,p.y,gal,i===home?10:7.5,i===home);
+    node.appendChild(el("circle",{cx:p.x,cy:p.y,r:12,fill:"transparent"}));
+    node.addEventListener("pointerdown",e=>{ e.stopPropagation(); home=i; render(); });
+    g.appendChild(node);
+  }
+  // a ruler showing 100 Mpc today
+  svg.appendChild(el("line",{x1:VX-VR+12,x2:VX-VR+12+100*a*PXMPC,y1:VY+VR-14,y2:VY+VR-14,stroke:"#e9eef4","stroke-width":2}));
+  svg.appendChild(txt({x:VX-VR+12,y:VY+VR-20,fill:"#e9eef4","font-size":10.5,"font-family":MONO},"100 Mpc at the start → now "+Math.round(100*a)+" Mpc"));
+
+  // ===== Hubble diagram =====
+  svg.appendChild(txt({x:(HX0+HX1)/2,y:20,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Measured from "+h.name));
+  for(let d=0;d<=DMAX;d+=100){ svg.appendChild(el("line",{x1:hX(d),x2:hX(d),y1:HY0,y2:HY1,stroke:"#1c2c42"}));
+    svg.appendChild(txt({x:hX(d),y:HY1+15,fill:"#7f95b0","font-size":10.5,"text-anchor":"middle","font-family":MONO},d)); }
+  for(let v=0;v<=VMAX;v+=10000){ svg.appendChild(el("line",{x1:HX0,x2:HX1,y1:hY(v),y2:hY(v),stroke:"#1c2c42"}));
+    svg.appendChild(txt({x:HX0-6,y:hY(v)+4,fill:"#7f95b0","font-size":10.5,"text-anchor":"end","font-family":MONO},(v/1000)+"k")); }
+  svg.appendChild(txt({x:(HX0+HX1)/2,y:HY1+34,fill:"#a9bbcf","font-size":12,"text-anchor":"middle"},"Distance (Mpc)"));
+  const ym=(HY0+HY1)/2;
+  svg.appendChild(txt({x:HX0-40,y:ym,fill:"#a9bbcf","font-size":12,"text-anchor":"middle",transform:`rotate(-90 ${HX0-40} ${ym})`},"Speed away from us (km/s)"));
+  svg.appendChild(el("line",{x1:hX(0),y1:hY(0),x2:hX(DMAX),y2:hY(VMAX),stroke:"#ffd166","stroke-width":1.2,"stroke-dasharray":"5 4","stroke-opacity":0.7}));
+  for(const p of pts) if(p.d<=DMAX) svg.appendChild(el("circle",{cx:hX(p.d),cy:hY(p.v),r:3.2,fill:"#e9eef4"}));
+  svg.appendChild(txt({x:hX(DMAX*0.62),y:hY(VMAX*0.62)-10,fill:"#ffd166","font-size":11.5,"text-anchor":"end","font-family":MONO},"v = 70 × d"));
+  return pts.length;
+}
+
+// ---------- readouts ----------
+function update(n){
+  const a=sc(), t=Math.log(a)*MPC_GYR/H0;
+  document.getElementById("aval").textContent=a.toFixed(2);
+  document.getElementById("readouts").innerHTML=
+    `<span>you are in <b>${GAL[home].name}</b></span><span>time elapsed <b>${t.toFixed(1)} billion years</b></span>`+
+    `<span>galaxies in view <b>${n}</b></span><span>Hubble constant measured here <b>70 km/s/Mpc</b></span>`;
+  document.getElementById("note").textContent=home===0
+    ?"Every galaxy is moving away from the Milky Way, and the further away it is, the faster it goes. It looks as if we're at the centre of an explosion. Now click any other galaxy to see what its astronomers would measure."
+    :`From ${GAL[home].name} the picture is exactly the same: everything recedes, faster in proportion to distance, with the same Hubble constant. Every galaxy can claim to be "at the centre", which means there isn't one.`;
+}
+function render(){ update(draw()); }
+
+// ---------- controls ----------
+const playBtn=document.getElementById("play");
+function tick(now){
+  if(!playing) return;
+  const dt=Math.min((now-last)/1000,0.1); last=now;
+  let a=+aS.value*Math.exp(dt*0.12);
+  if(a>=2.5){ a=2.5; playing=false; playBtn.innerHTML="&#9654; Expand"; }
+  aS.value=a; render(); if(playing) requestAnimationFrame(tick);
+}
+playBtn.addEventListener("click",()=>{ playing=!playing; playBtn.innerHTML=playing?"&#10074;&#10074; Pause":"&#9654; Expand";
+  if(playing){ if(+aS.value>=2.5) aS.value=1; last=performance.now(); requestAnimationFrame(tick); } });
+document.getElementById("reset").addEventListener("click",()=>{ playing=false; playBtn.innerHTML="&#9654; Expand"; aS.value=1; home=0; render(); });
+for(const c of [aS,tArrows,tGrid,tTrails]) c.addEventListener("input",render);
+
+aS.value=1;
+render();
+</script>
+</body>
+</html>
