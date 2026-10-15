@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Cosmic Speed Limit</title>
+<style>
+  :root{
+    --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
+    --panel:#0d1826; --panel-edge:#22354c;
+    --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e; --newt:#7f95b0;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f6f8;padding:16px 8px}
+  .app{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  body.big .app{max-width:1240px} body.big .zoomable{zoom:1.25}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 18px 10px}
+  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.01em}
+  header .sub{font-size:12px;color:var(--muted)}
+  .plotwrap{background:var(--panel);border-top:1px solid var(--panel-edge);border-bottom:1px solid var(--panel-edge)}
+  svg{display:block;width:100%;height:auto}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:12px 18px 2px;font-size:13px}
+  .presets .lbl{color:var(--muted);min-width:64px}
+  .pill{font:inherit;font-size:12.5px;padding:5px 11px;border:1px solid var(--line);background:#fff;border-radius:99px;cursor:pointer;color:var(--ink)}
+  .pill:hover{border-color:var(--accent)}
+  .pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .controls{padding:8px 18px 4px;display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center}
+  .vbox{font-family:var(--mono);font-size:22px;font-weight:600;min-width:230px}
+  .vbox small{font-size:12px;color:var(--muted);font-weight:400;display:block}
+  input[type=range]{flex:1;min-width:220px;accent-color:var(--accent);height:28px}
+  .toggles{display:flex;gap:14px;flex-wrap:wrap;padding:4px 18px 6px;font-size:13px;color:var(--ink)}
+  .toggles label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .readouts{display:flex;gap:10px 24px;flex-wrap:wrap;padding:4px 18px 10px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .readouts b{color:var(--ink);font-weight:600}
+  .note{margin:2px 18px 12px;padding:10px 14px;border-left:4px solid var(--accent);background:#f2f6fa;border-radius:0 6px 6px 0;font-size:13.5px;line-height:1.55}
+  h2{font-size:14px;margin:14px 18px 6px;font-weight:650}
+  .calc{margin:0 18px 12px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;display:grid;grid-template-columns:auto 1fr;gap:8px 14px;align-items:center;font-size:13.5px}
+  .calc input[type=number]{font:inherit;font-family:var(--mono);font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;width:120px}
+  .eq{grid-column:1/-1;font-family:var(--mono);font-size:13px;line-height:1.7;background:#f2f6fa;border-radius:6px;padding:8px 12px;white-space:pre;overflow-x:auto}
+  .hint{padding:0 18px 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  footer{padding:10px 18px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+  @media (max-width:560px){ header{flex-direction:column;gap:2px} .vbox{font-size:18px;min-width:0} .calc{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>The Cosmic Speed Limit</h1>
+    <div class="sub">Why pushing harder never gets anything with mass to the speed of light</div>
+  </header>
+
+  <div class="plotwrap"><svg id="plot" viewBox="0 0 920 420" role="img" aria-label="Momentum and energy against speed, compared with Newtonian physics"></svg></div>
+
+  <div class="zoomable">
+  <div class="presets" id="parts"><span class="lbl">Object:</span></div>
+  <div class="presets" id="ex"><span class="lbl">Example:</span></div>
+
+  <div class="controls">
+    <div class="vbox"><small>speed</small><span id="vv">0.9</span></div>
+    <input id="s" type="range" min="0" max="9" step="any" aria-label="Speed (closeness to c)">
+  </div>
+  <div class="toggles"><label><input id="tBig" type="checkbox"> Projector mode (larger text)</label></div>
+
+  <div class="readouts" id="readouts"></div>
+  <div class="note" id="note"></div>
+
+  <h2>Adding velocities</h2>
+  <div class="presets" id="vex" style="padding-top:0"><span class="lbl">Try:</span></div>
+  <div class="calc">
+    <label for="u">Spaceship's speed (× c)</label><input id="u" type="number" min="0" max="1" step="0.01" value="0.5">
+    <label for="w">Speed of something fired forwards from the ship, measured on board (× c)</label><input id="w" type="number" min="0" max="1" step="0.01" value="1">
+    <div class="eq" id="vadd"></div>
+  </div>
+
+  <div class="hint">
+    <b>Why there's a limit:</b> the faster something goes, the harder it gets to speed it up further. Its momentum, p = &gamma;mv, and its energy, E = &gamma;mc&sup2;, both grow without limit as v approaches c, because &gamma; = 1/&radic;(1 &minus; v&sup2;/c&sup2;) does. Reaching c would take infinite energy, so nothing with mass can get there; each extra push just adds a smaller and smaller amount of speed.
+    Even at rest, an object has energy E = mc&sup2; (its <i>rest energy</i>). At everyday speeds, &gamma; is so close to 1 that Newton's p = mv and &frac12;mv&sup2; work perfectly; the two theories only disagree near the speed of light.
+  </div>
+
+  <footer>
+    Uses relativistic momentum p = &gamma;mv, total energy E = &gamma;mc&sup2; and kinetic energy (&gamma; &minus; 1)mc&sup2;, with proton and electron rest energies of 938.272 MeV and 0.511 MeV. Older textbooks describe the increase in momentum as an increase in "relativistic mass"; physicists now usually keep m as the fixed rest mass and put the &gamma; into the momentum and energy instead.
+    <br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.
+  </footer>
+  </div>
+</div>
+
+<script>
+"use strict";
+const C=299792458, EV=1.602176634e-19, MT_TNT=4.184e15;
+const PARTS=[
+  {key:"p", name:"Proton", m:1.67262192e-27, mc2eV:938.272e6},
+  {key:"e", name:"Electron", m:9.1093837e-31, mc2eV:0.51099895e6},
+  {key:"ball", name:"1 kg ball", m:1, mc2eV:null},
+];
+const EXAMPLES=[
+  {name:"Workshop slide: proton at 0.99c", part:"p", b:0.99},
+  {name:"LHC proton (6.8 TeV)", part:"p", g:6.8e12/938.272e6+1},
+  {name:"Electron in a TV tube (25 keV)", part:"e", g:25e3/0.511e6+1},
+  {name:"Fastest spacecraft (Parker Solar Probe)", part:"ball", v:191.7e3},
+];
+const VEX=[["Workshop quiz: laser from a 0.5c ship",0.5,1],["Two 0.75c speeds",0.75,0.75],["A ball thrown in a bus (tiny speeds)",0.0000000927,0.0000000093]];
+let part=PARTS[0];
+const sS=document.getElementById("s");
+const beta=()=>{ const s=+sS.value; return s<=0?0:1-Math.pow(10,-s)*(s<1?1:1); };
+// slider: 0 to 1 maps linearly to 0..0.9c, then each step of 1 adds a "9" (0.99, 0.999, ...)
+function sliderToBeta(s){ return s<=1?0.9*s:1-0.1*Math.pow(10,-(s-1)); }
+function betaToSlider(b){ return b<=0.9?b/0.9:1-Math.log10((1-b)/0.1); }
+const B=()=>sliderToBeta(+sS.value);
+const gm1=b=>Math.expm1(-0.5*Math.log1p(-b*b));
+
+// ---------- drawing ----------
+const svg=document.getElementById("plot"), NS="http://www.w3.org/2000/svg";
+const MONO='ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace';
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(a,s){const t=el("text",a);t.textContent=s;return t;}
+const SUP=n=>String(n).replace(/[0-9-]/g,c=>"⁰¹²³⁴⁵⁶⁷⁸⁹"[+c]||"⁻");
+const A={x0:60,x1:430,y0:40,y1:360}, E={x0:520,x1:895,y0:40,y1:360};
+
+function draw(){
+  const b=B(), g=1+gm1(b);
+  svg.textContent="";
+  // ===== momentum against speed (linear speed axis) =====
+  const PMAX=6, ax=v=>A.x0+v*(A.x1-A.x0), ay=p=>A.y1-Math.min(p,PMAX)/PMAX*(A.y1-A.y0);
+  svg.appendChild(txt({x:(A.x0+A.x1)/2,y:22,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Momentum, in units of mc"));
+  for(let v=0;v<=1.0001;v+=0.2){ svg.appendChild(el("line",{x1:ax(v),x2:ax(v),y1:A.y0,y2:A.y1,stroke:"#1c2c42"}));
+    svg.appendChild(txt({x:ax(v),y:A.y1+15,fill:"#7f95b0","font-size":10.5,"text-anchor":"middle","font-family":MONO},v===0?"0":(+v.toFixed(1))+"c")); }
+  for(let p=0;p<=PMAX;p++){ svg.appendChild(el("line",{x1:A.x0,x2:A.x1,y1:ay(p),y2:ay(p),stroke:"#1c2c42"}));
+    svg.appendChild(txt({x:A.x0-6,y:ay(p)+4,fill:"#7f95b0","font-size":10.5,"text-anchor":"end","font-family":MONO},p)); }
+  svg.appendChild(txt({x:(A.x0+A.x1)/2,y:A.y1+34,fill:"#a9bbcf","font-size":12,"text-anchor":"middle"},"Speed"));
+  svg.appendChild(el("line",{x1:ax(1),x2:ax(1),y1:A.y0,y2:A.y1,stroke:"#e07a5f","stroke-width":2,"stroke-dasharray":"6 4"}));
+  svg.appendChild(txt({x:ax(1)+13,y:(A.y0+A.y1)/2,fill:"#e07a5f","font-size":11,"text-anchor":"middle","font-family":MONO,transform:`rotate(-90 ${ax(1)+13} ${(A.y0+A.y1)/2})`},"speed of light"));
+  svg.appendChild(el("line",{x1:ax(0),y1:ay(0),x2:ax(1),y2:ay(1),stroke:"var(--newt)","stroke-width":1.8,"stroke-dasharray":"5 4"}));
+  svg.appendChild(txt({x:ax(1)-8,y:ay(0.4),fill:"#a9bbcf","font-size":11,"text-anchor":"end","font-family":MONO},"Newton: p = mv"));
+  let d=""; for(let i=0;i<=400;i++){ const v=i/400*0.9999, p=v/Math.sqrt(1-v*v); if(p>PMAX*1.05) break; d+=(i?"L":"M")+ax(v).toFixed(1)+" "+ay(p).toFixed(1); }
+  svg.appendChild(el("path",{d,fill:"none",stroke:"var(--spec)","stroke-width":2.6}));
+  svg.appendChild(txt({x:ax(0.42),y:ay(2.4),fill:"#ffd166","font-size":11.5,"font-family":MONO},"relativity: p = γmv"));
+  const pNow=g*b;
+  if(pNow<=PMAX) svg.appendChild(el("circle",{cx:ax(b),cy:ay(pNow),r:6,fill:"#ffd166",stroke:"#fff","stroke-width":1.5}));
+  else{ svg.appendChild(el("path",{d:`M${ax(b)} ${A.y0+2}l-6 12h12z`,fill:"#ffd166"})); svg.appendChild(txt({x:ax(b)-8,y:A.y0+26,fill:"#ffd166","font-size":10.5,"text-anchor":"end","font-family":MONO},"off the top: "+fmt(pNow)+" mc")); }
+
+  // ===== kinetic energy against closeness to c (log scales) =====
+  const KMIN=-3, KMAX=12, SMAX=9;   // log10 of KE in units of mc^2, slider position on x
+  const ex=s=>E.x0+s/SMAX*(E.x1-E.x0), ey=k=>E.y1-(Math.max(Math.min(k,KMAX),KMIN)-KMIN)/(KMAX-KMIN)*(E.y1-E.y0);
+  svg.appendChild(txt({x:(E.x0+E.x1)/2,y:22,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Kinetic energy, in units of mc² (log scale)"));
+  for(const [s,lab] of [[0,"0"],[1,"0.9c"],[2,"0.99c"],[3,"0.999c"],[5,"0.99999c"],[7,""],[9,"0.999999999c"]]){
+    svg.appendChild(el("line",{x1:ex(s),x2:ex(s),y1:E.y0,y2:E.y1,stroke:"#1c2c42"}));
+    if(lab) svg.appendChild(txt({x:ex(s),y:E.y1+15,fill:"#7f95b0","font-size":9.5,"text-anchor":s===9?"end":"middle","font-family":MONO},lab)); }
+  for(let k=-3;k<=12;k+=3){ svg.appendChild(el("line",{x1:E.x0,x2:E.x1,y1:ey(k),y2:ey(k),stroke:"#1c2c42"}));
+    svg.appendChild(txt({x:E.x0-6,y:ey(k)+4,fill:"#7f95b0","font-size":10.5,"text-anchor":"end","font-family":MONO},k===0?"1":"10"+SUP(k))); }
+  svg.appendChild(txt({x:(E.x0+E.x1)/2,y:E.y1+34,fill:"#a9bbcf","font-size":12,"text-anchor":"middle"},"Speed (each step adds another 9)"));
+  let dr="", dn="";
+  for(let i=1;i<=450;i++){ const s=i/450*SMAX, bb=sliderToBeta(s);
+    dr+=(i>1?"L":"M")+ex(s).toFixed(1)+" "+ey(Math.log10(gm1(bb))).toFixed(1);
+    dn+=(i>1?"L":"M")+ex(s).toFixed(1)+" "+ey(Math.log10(0.5*bb*bb)).toFixed(1); }
+  svg.appendChild(el("path",{d:dn,fill:"none",stroke:"var(--newt)","stroke-width":1.8,"stroke-dasharray":"5 4"}));
+  svg.appendChild(el("path",{d:dr,fill:"none",stroke:"var(--spec)","stroke-width":2.6}));
+  svg.appendChild(txt({x:ex(8.9),y:ey(Math.log10(0.5))+16,fill:"#a9bbcf","font-size":11,"text-anchor":"end","font-family":MONO},"Newton: ½mv² never passes ½mc²"));
+  svg.appendChild(txt({x:ex(2.6),y:ey(4.6),fill:"#ffd166","font-size":11.5,"font-family":MONO},"relativity: (γ − 1)mc²"));
+  const s=+sS.value;
+  if(b>0) svg.appendChild(el("circle",{cx:ex(s),cy:ey(Math.log10(gm1(b))),r:6,fill:"#ffd166",stroke:"#fff","stroke-width":1.5}));
+  update();
+}
+
+// ---------- readouts ----------
+function fmt(v,p=3){ if(v===0) return "0"; const e=Math.floor(Math.log10(Math.abs(v))); if(e>=-2&&e<5) { const t=String(+v.toPrecision(p)).split("."); t[0]=t[0].replace(/\B(?=(\d{3})+(?!\d))/g,","); return t.join("."); } return (v/10**e).toFixed(p-1)+"×10"+SUP(e); }
+function fmtEV(ev){ const u=[[1e12,"TeV"],[1e9,"GeV"],[1e6,"MeV"],[1e3,"keV"],[1,"eV"]]; for(const [f,n] of u) if(ev>=f) return fmt(ev/f)+" "+n; return fmt(ev)+" eV"; }
+function fmtB(b){ if(b===0) return "0"; if(b<0.9) return b.toFixed(b<0.01?5:3)+"c"; const n=Math.floor(-Math.log10(1-b)); return b.toFixed(Math.min(n+2,12))+"c"; }
+function update(){
+  const b=B(), g1=gm1(b), g=1+g1, m=part.m, v=b*C, p=g*m*v, KE=g1*m*C*C, E0=m*C*C;
+  document.getElementById("vv").textContent=fmtB(b);
+  const eStr=x=>part.mc2eV?fmtEV(x/EV):fmt(x)+" J";
+  document.getElementById("readouts").innerHTML=
+    `<span>γ <b>${g<1.001?"1 + "+fmt(g1):fmt(g,5)}</b></span><span>momentum <b>${fmt(p)} kg m/s</b></span>`+
+    `<span>Newton's mv would give <b>${fmt(m*v)} kg m/s</b></span><span>kinetic energy <b>${eStr(KE)}</b></span>`+
+    `<span>rest energy mc² <b>${eStr(E0)}${part.key==="ball"?" ("+fmt(E0/MT_TNT)+" megatonnes of TNT)":""}</b></span>`;
+  document.getElementById("note").textContent=
+    b<0.1?`At ${fmtB(b)} relativity and Newton agree almost exactly: γ is only ${g<1.001?"1 + "+fmt(g1):g.toFixed(4)}.`
+    :b<0.9?`At ${fmtB(b)} the momentum is already ${((g-1)*100).toFixed(0)}% more than Newton predicts. Each extra bit of speed costs more than the last.`
+    :`At ${fmtB(b)}, γ is ${fmt(g)}: the momentum is ${fmt(g)} times Newton's value and the kinetic energy is ${fmt(g1)} times the object's rest energy. Every extra "9" after the decimal point costs about three times as much energy again, and reaching c itself would need infinite energy.`;
+  for(const x of document.querySelectorAll("#parts .pill")) x.classList.toggle("on",x.dataset.k===part.key);
+}
+function vadd(){
+  const u=Math.min(Math.max(+document.getElementById("u").value||0,0),1), w=Math.min(Math.max(+document.getElementById("w").value||0,0),1), r=(u+w)/(1+u*w);
+  const show=x=>x<0.001?fmt(x*C)+" m/s":fmt(x,6)+"c";
+  document.getElementById("vadd").textContent=
+    "Newton (Galilean):  u + w = "+show(u)+" + "+show(w)+" = "+show(u+w)+(u+w>1?"   (faster than light!)":"")+"\n"+
+    "Relativity:         (u + w) / (1 + uw/c²) = "+show(r)+(w>=1?"   (light still travels at exactly c)":r<0.001?"   (the same, to many decimal places)":"   (always below c)");
+}
+
+// ---------- controls ----------
+const pb=document.getElementById("parts");
+for(const q of PARTS){ const b=document.createElement("button"); b.className="pill"; b.textContent=q.name; b.dataset.k=q.key; b.addEventListener("click",()=>{ part=q; draw(); }); pb.appendChild(b); }
+const eb=document.getElementById("ex");
+for(const e of EXAMPLES){ const b=document.createElement("button"); b.className="pill"; b.textContent=e.name;
+  b.addEventListener("click",()=>{ part=PARTS.find(q=>q.key===e.part); const bb=e.b??(e.g?Math.sqrt(1-1/(e.g*e.g)):e.v/C);
+    sS.value=betaToSlider(bb); for(const x of eb.querySelectorAll(".pill")) x.classList.toggle("on",x===b); draw(); }); eb.appendChild(b); }
+sS.addEventListener("input",()=>{ for(const x of eb.querySelectorAll(".pill")) x.classList.remove("on"); draw(); });
+const vb=document.getElementById("vex");
+for(const [n,u,w] of VEX){ const b=document.createElement("button"); b.className="pill"; b.textContent=n;
+  b.addEventListener("click",()=>{ document.getElementById("u").value=u; document.getElementById("w").value=w; vadd(); }); vb.appendChild(b); }
+for(const id of ["u","w"]) document.getElementById(id).addEventListener("input",vadd);
+document.getElementById("tBig").addEventListener("input",e=>document.body.classList.toggle("big",e.target.checked));
+
+eb.querySelectorAll(".pill")[0].click();
+vadd();
+</script>
+</body>
+</html>

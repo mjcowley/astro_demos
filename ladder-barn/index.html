@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Ladder in the Barn</title>
+<style>
+  :root{
+    --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
+    --panel:#0d1826; --panel-edge:#22354c;
+    --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e; --door1:#4cc9f0; --door2:#f4a261;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f6f8;padding:16px 8px}
+  .app{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  body.big .app{max-width:1240px} body.big .zoomable{zoom:1.25}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 18px 10px}
+  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.01em}
+  header .sub{font-size:12px;color:var(--muted)}
+  .plotwrap{background:var(--panel);border-top:1px solid var(--panel-edge);border-bottom:1px solid var(--panel-edge)}
+  svg{display:block;width:100%;height:auto}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:12px 18px 2px;font-size:13px}
+  .presets .lbl{color:var(--muted);min-width:92px}
+  .pill{font:inherit;font-size:12.5px;padding:5px 11px;border:1px solid var(--line);background:#fff;border-radius:99px;cursor:pointer;color:var(--ink)}
+  .pill:hover{border-color:var(--accent)}
+  .pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .controls{padding:8px 18px 4px;display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center}
+  .btn{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:6px;cursor:pointer;min-width:84px}
+  .vbox{font-family:var(--mono);font-size:22px;font-weight:600;min-width:160px}
+  .vbox small{font-size:12px;color:var(--muted);font-weight:400;display:block}
+  input[type=range]{flex:1;min-width:220px;accent-color:var(--accent);height:28px}
+  .toggles{display:flex;gap:14px;flex-wrap:wrap;padding:4px 18px 6px;font-size:13px;color:var(--ink)}
+  .toggles label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .readouts{display:flex;gap:10px 24px;flex-wrap:wrap;padding:4px 18px 10px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .readouts b{color:var(--ink);font-weight:600}
+  .note{margin:2px 18px 12px;padding:10px 14px;border-left:4px solid var(--accent);background:#f2f6fa;border-radius:0 6px 6px 0;font-size:13.5px;line-height:1.55}
+  .note .t{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:650;margin-bottom:2px}
+  .hint{padding:0 18px 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  footer{padding:10px 18px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+  @media (max-width:560px){ header{flex-direction:column;gap:2px} .vbox{font-size:18px;min-width:0} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>The Ladder in the Barn</h1>
+    <div class="sub">A 10 m ladder races through an 8 m barn. Can both doors be shut with the ladder inside?</div>
+  </header>
+
+  <div class="plotwrap"><svg id="plot" viewBox="0 0 920 440" role="img" aria-label="A ladder passing through a barn, and a spacetime diagram"></svg></div>
+
+  <div class="zoomable">
+  <div class="presets" id="frames"><span class="lbl">Watch from:</span></div>
+
+  <div class="controls">
+    <button class="btn" id="play">&#9654; Play</button>
+    <div class="vbox"><small>ladder speed</small><span id="vv">0.80</span> c</div>
+    <input id="v" type="range" min="0.3" max="0.95" step="0.01" aria-label="Ladder speed">
+  </div>
+  <div class="controls" style="padding-top:0">
+    <span style="font-size:13px;color:var(--muted)">Time</span>
+    <input id="t" type="range" min="0" max="1" step="0.001" aria-label="Time">
+  </div>
+  <div class="toggles">
+    <label><input id="tOther" type="checkbox"> Show the other frame's "same time" line</label>
+    <label><input id="tBig" type="checkbox"> Projector mode (larger text)</label>
+  </div>
+
+  <div class="readouts" id="readouts"></div>
+  <div class="note" id="note"><span class="t" id="ntitle"></span><span id="ntext"></span></div>
+
+  <div class="hint">
+    <b>The paradox:</b> in the barn's frame the moving ladder is length-contracted, so it fits inside and the farmer can shut both doors at the same moment, trapping it for an instant. But in the ladder's frame it's the barn that's moving and contracted, so the barn is even shorter and the ladder can't possibly fit. Who's right?
+    <b>The resolution is simultaneity.</b> "Both doors shut at the same time" is true in the barn's frame only. In the ladder's frame the back door shuts (and opens again) first, while the ladder's front is still short of it, and the front door shuts only after the back of the ladder has got inside. The ladder is never enclosed at one instant in its own frame, and both descriptions agree on everything that actually happens.
+  </div>
+
+  <footer>
+    Ladder proper length 10 m, barn proper length 8 m, so the ladder fits in the barn's frame when &gamma; &ge; 1.25 (v &ge; 0.6c). Each door closes for a moment and then opens again, as in the usual statement of the paradox. Times are in nanoseconds; calculated with the Lorentz transformation.
+    <br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.
+  </footer>
+  </div>
+</div>
+
+<script>
+"use strict";
+const L0=10, B0=8, NS_PER_M=3.33564;              // proper lengths (m); 1 m of light travel = 3.336 ns
+const DOOR_DUR=0.6;                                 // how long each door stays shut, in barn time (light-metres)
+let frame="barn", playing=false, last=0;
+const vS=document.getElementById("v"), tS=document.getElementById("t"), tOther=document.getElementById("tOther");
+
+function setup(){
+  const v=+vS.value, g=1/Math.sqrt(1-v*v), L=L0/g;
+  const td=(B0+L)/(2*v);                            // ladder centred in the barn (barn time), with c = 1
+  const ev={F:{x:0,t:td}, K:{x:B0,t:td}};           // front (entrance) door and back door shut together in the barn frame
+  return {v,g,L,td,ev};
+}
+const toF=(e,s)=>frame==="barn"?e:{x:s.g*(e.x-s.v*e.t), t:s.g*(e.t-s.v*e.x)};
+
+// ---------- drawing ----------
+const svg=document.getElementById("plot"), NS="http://www.w3.org/2000/svg";
+const MONO='ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace';
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(a,s){const t=el("text",a);t.textContent=s;return t;}
+const SX0=20, SX1=560, GY=200, DX0=610, DX1=900, DY0=50, DY1=400;
+function ranges(s){
+  const ts=Object.values(s.ev).map(e=>toF(e,s).t), mid=(Math.min(...ts)+Math.max(...ts))/2, half=(Math.max(...ts)-Math.min(...ts))/2+(L0+B0)/(1.3*s.v);
+  const cx=frame==="barn"?B0/2:toF({x:B0/2,t:s.td},s).x;
+  return {t0:mid-half, t1:mid+half, x0:cx-(L0+B0)*0.75, x1:cx+(L0+B0)*0.75};
+}
+function draw(){
+  const s=setup(), R=ranges(s), T=R.t0+(R.t1-R.t0)*(+tS.value), inB=frame==="barn", v=s.v, g=s.g;
+  const xs=x=>SX0+(x-R.x0)/(R.x1-R.x0)*(SX1-SX0);
+  svg.textContent="";
+  svg.appendChild(txt({x:(SX0+SX1)/2,y:22,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},inB?"Barn's frame: the ladder moves right":"Ladder's frame: the barn moves left"));
+  // positions at frame time T
+  const barnX=x=>inB?x:x/g-v*T;                     // a point fixed to the barn
+  const ladX=x=>inB?x/g+v*T:x;                      // a point fixed to the ladder (front at 0, rear at -L0)
+  // door state: shut for DOOR_DUR of barn time around each event; convert to this frame's time at the door
+  const shut=k=>{ const e=s.ev[k]; if(inB) return Math.abs(T-e.t)<DOOR_DUR/2;
+    const tb=T/g+v*e.x;                             // barn-clock time at that door when this frame's time is T
+    return Math.abs(tb-e.t)<DOOR_DUR/2; };
+  // ground and barn
+  svg.appendChild(el("line",{x1:SX0,x2:SX1,y1:GY+40,y2:GY+40,stroke:"#3d5675","stroke-width":2}));
+  const b0=xs(barnX(0)), b1=xs(barnX(B0));
+  svg.appendChild(el("path",{d:`M${b0} ${GY+40}V${GY-40}L${(b0+b1)/2} ${GY-80}L${b1} ${GY-40}V${GY+40}`,fill:"#5a2f22","fill-opacity":0.55,stroke:"#b07a52","stroke-width":2}));
+  svg.appendChild(txt({x:(b0+b1)/2,y:GY-52,fill:"#e0b48a","font-size":11,"text-anchor":"middle","font-family":MONO},"barn "+(inB?B0:(B0/g).toFixed(2))+" m"));
+  // ladder
+  const lr=xs(ladX(-L0)), lf=xs(ladX(0)), ly=GY+6;
+  svg.appendChild(el("line",{x1:lr,x2:lf,y1:ly,y2:ly,stroke:"#ffd166","stroke-width":3}));
+  svg.appendChild(el("line",{x1:lr,x2:lf,y1:ly+18,y2:ly+18,stroke:"#ffd166","stroke-width":3}));
+  const rungs=10; for(let k=0;k<=rungs;k++){ const x=lr+(lf-lr)*k/rungs; svg.appendChild(el("line",{x1:x,x2:x,y1:ly,y2:ly+18,stroke:"#ffd166","stroke-width":2})); }
+  svg.appendChild(txt({x:(lr+lf)/2,y:ly-10,fill:"#ffd166","font-size":11,"text-anchor":"middle","font-family":MONO},"ladder "+(inB?(L0/g).toFixed(2):L0)+" m"));
+  // doors
+  for(const [k,x,col,lab] of [["F",0,"var(--door1)","front door"],["K",B0,"var(--door2)","back door"]]){
+    const X=xs(barnX(x)), closed=shut(k);
+    svg.appendChild(el("rect",{x:X-4,y:GY-40,width:8,height:80,fill:closed?col:"none",stroke:col,"stroke-width":2,"stroke-dasharray":closed?"":"4 3"}));
+    svg.appendChild(txt({x:X,y:GY+60,fill:col,"font-size":11,"text-anchor":"middle","font-family":MONO},lab+(closed?" SHUT":"")));
+  }
+  // status
+  const inside=ladX(-L0)>=barnX(0)-1e-9&&ladX(0)<=barnX(B0)+1e-9, both=shut("F")&&shut("K");
+  svg.appendChild(txt({x:(SX0+SX1)/2,y:GY+100,fill:"#a9bbcf","font-size":12,"text-anchor":"middle","font-family":MONO},(inB?"barn":"ladder")+" time  t = "+(T*NS_PER_M).toFixed(1)+" ns"));
+  svg.appendChild(txt({x:(SX0+SX1)/2,y:GY+124,fill:both&&inside?"#5fd3b4":"#e9eef4","font-size":13,"text-anchor":"middle","font-weight":600},
+    both&&inside?"Both doors shut with the whole ladder inside!":both?"Both doors shut":inside?"The whole ladder is inside the barn":""));
+  drawDiagram(s,R,T);
+  update(s);
+}
+function drawDiagram(s,R,T){
+  const inB=frame==="barn", v=s.v, g=s.g;
+  const dx=x=>DX0+(x-R.x0)/(R.x1-R.x0)*(DX1-DX0), dt=t=>DY1-(t-R.t0)/(R.t1-R.t0)*(DY1-DY0);
+  svg.appendChild(txt({x:(DX0+DX1)/2,y:22,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Spacetime diagram ("+(inB?"barn":"ladder")+" frame)"));
+  svg.appendChild(el("rect",{x:DX0,y:DY0,width:DX1-DX0,height:DY1-DY0,fill:"none",stroke:"#1c2c42"}));
+  svg.appendChild(txt({x:(DX0+DX1)/2,y:DY1+18,fill:"#7f95b0","font-size":11,"text-anchor":"middle","font-family":MONO},"position →"));
+  svg.appendChild(txt({x:DX0-6,y:DY0+10,fill:"#7f95b0","font-size":11,"text-anchor":"end","font-family":MONO},"time ↑"));
+  const cp=el("clipPath",{id:"dg"}); cp.appendChild(el("rect",{x:DX0,y:DY0,width:DX1-DX0,height:DY1-DY0}));
+  const defs=el("defs",{}); defs.appendChild(cp); svg.appendChild(defs);
+  const gD=el("g",{"clip-path":"url(#dg)"}); svg.appendChild(gD);
+  // the ladder's body as a shaded band; the barn's walls as lines
+  const ladX=(x,t)=>inB?x/g+v*t:x, barnX=(x,t)=>inB?x:x/g-v*t;
+  const ta=R.t0-5, tb=R.t1+5;
+  gD.appendChild(el("path",{d:`M${dx(ladX(-L0,ta))} ${dt(ta)}L${dx(ladX(0,ta))} ${dt(ta)}L${dx(ladX(0,tb))} ${dt(tb)}L${dx(ladX(-L0,tb))} ${dt(tb)}Z`,fill:"#ffd166","fill-opacity":0.18,stroke:"#ffd166","stroke-opacity":0.7}));
+  for(const [x,col] of [[0,"#4cc9f0"],[B0,"#f4a261"]]) gD.appendChild(el("line",{x1:dx(barnX(x,ta)),y1:dt(ta),x2:dx(barnX(x,tb)),y2:dt(tb),stroke:col,"stroke-width":2}));
+  // door events
+  for(const [k,col] of [["F","#4cc9f0"],["K","#f4a261"]]){ const e=toF(s.ev[k],s);
+    gD.appendChild(el("rect",{x:dx(e.x)-6,y:dt(e.t)-6,width:12,height:12,fill:col,transform:`rotate(45 ${dx(e.x)} ${dt(e.t)})`})); }
+  gD.appendChild(el("line",{x1:DX0,x2:DX1,y1:dt(T),y2:dt(T),stroke:"#e9eef4","stroke-opacity":0.5}));
+  if(tOther.checked){ const e=toF(s.ev.F,s), slope=inB?v:-v;
+    gD.appendChild(el("line",{x1:dx(R.x0),y1:dt(e.t+slope*(R.x0-e.x)),x2:dx(R.x1),y2:dt(e.t+slope*(R.x1-e.x)),stroke:"#9d8df1","stroke-width":1.6,"stroke-dasharray":"6 4"}));
+    gD.appendChild(txt({x:DX0+6,y:DY0+14,fill:"#c8bffa","font-size":10.5,"font-family":MONO},"dashed: same time for the "+(inB?"ladder":"barn"))); }
+  gD.appendChild(txt({x:DX1-6,y:DY1-8,fill:"#ffd166","font-size":10.5,"text-anchor":"end","font-family":MONO},"shaded band = ladder"));
+}
+
+// ---------- readouts ----------
+function update(s){
+  const inB=frame==="barn", fits=s.L<=B0, eF=toF(s.ev.F,s), eK=toF(s.ev.K,s), dtn=(eF.t-eK.t)*NS_PER_M;
+  document.getElementById("vv").textContent=s.v.toFixed(2);
+  document.getElementById("readouts").innerHTML=
+    `<span>γ <b>${s.g.toFixed(3)}</b></span><span>ladder, seen by the barn <b>${s.L.toFixed(2)} m</b></span><span>barn, seen by the ladder <b>${(B0/s.g).toFixed(2)} m</b></span>`+
+    `<span>gap between the door events <b>${inB?"0 ns (simultaneous)":Math.abs(dtn).toFixed(1)+" ns, back door first"}</b></span>`;
+  let title, text;
+  if(!fits){ title="Too slow to fit"; text=`At ${s.v.toFixed(2)}c the ladder is only contracted to ${s.L.toFixed(2)} m, still longer than the 8 m barn, so even the farmer can't trap it. It needs γ ≥ 1.25, a speed of at least 0.6c.`; }
+  else if(inB){ title="Barn's frame: trapped for an instant"; text=`The moving ladder is contracted to ${s.L.toFixed(2)} m, shorter than the 8 m barn. With the ladder inside, the farmer shuts both doors at the same moment, then opens them again to let it out. Now switch to the ladder's frame.`; }
+  else{ title="Ladder's frame: the back door shuts first"; text=`Here the barn is only ${(B0/s.g).toFixed(2)} m long, so a 10 m ladder can't fit. But the doors don't shut together: the back door shuts and reopens ${Math.abs(dtn).toFixed(1)} ns before the front door does. The ladder's front gets through the back door after it reopens, and its rear is already inside when the front door shuts. Nothing ever crashes, so both frames agree on what happens.`; }
+  document.getElementById("ntitle").textContent=title; document.getElementById("ntext").textContent=text;
+  for(const b of document.querySelectorAll("#frames .pill")) b.classList.toggle("on",b.dataset.k===frame);
+}
+
+// ---------- controls ----------
+const fb=document.getElementById("frames");
+for(const [k,n] of [["barn","The barn (farmer)"],["ladder","The ladder (runner)"]]){ const b=document.createElement("button"); b.className="pill"; b.textContent=n; b.dataset.k=k;
+  b.addEventListener("click",()=>{ frame=k; draw(); }); fb.appendChild(b); }
+for(const c of [vS,tS,tOther]) c.addEventListener("input",draw);
+document.getElementById("tBig").addEventListener("input",e=>document.body.classList.toggle("big",e.target.checked));
+const playBtn=document.getElementById("play");
+function tick(now){ if(!playing) return; const dt=Math.min((now-last)/1000,0.1); last=now;
+  let u=+tS.value+dt/8; if(u>=1){ u=1; playing=false; playBtn.innerHTML="&#9654; Play"; } tS.value=u; draw(); if(playing) requestAnimationFrame(tick); }
+playBtn.addEventListener("click",()=>{ playing=!playing; playBtn.innerHTML=playing?"&#10074;&#10074; Pause":"&#9654; Play";
+  if(playing){ if(+tS.value>=1) tS.value=0; last=performance.now(); requestAnimationFrame(tick); } });
+
+vS.value=0.8; tS.value=0.5;
+draw();
+</script>
+</body>
+</html>

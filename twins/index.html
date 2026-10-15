@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Twin Paradox</title>
+<style>
+  :root{
+    --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
+    --panel:#0d1826; --panel-edge:#22354c;
+    --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e; --earth:#4cc9f0; --trav:#f4a261;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f6f8;padding:16px 8px}
+  .app{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  body.big .app{max-width:1240px} body.big .zoomable{zoom:1.25}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 18px 10px}
+  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.01em}
+  header .sub{font-size:12px;color:var(--muted)}
+  .plotwrap{background:var(--panel);border-top:1px solid var(--panel-edge);border-bottom:1px solid var(--panel-edge)}
+  svg{display:block;width:100%;height:auto}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:12px 18px 2px;font-size:13px}
+  .presets .lbl{color:var(--muted);margin-right:2px}
+  .pill{font:inherit;font-size:12.5px;padding:5px 11px;border:1px solid var(--line);background:#fff;border-radius:99px;cursor:pointer;color:var(--ink)}
+  .pill:hover{border-color:var(--accent)}
+  .pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .controls{padding:8px 18px 4px;display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center}
+  .btn{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:6px;cursor:pointer;min-width:84px}
+  .sliders{padding:6px 18px 4px;display:grid;grid-template-columns:170px 1fr 170px;gap:2px 14px;align-items:center;font-size:13px}
+  .sliders .v{font-family:var(--mono);font-size:12.5px}
+  input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+  .toggles{display:flex;gap:14px;flex-wrap:wrap;padding:4px 18px 6px;font-size:13px;color:var(--ink)}
+  .toggles label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .readouts{display:flex;gap:10px 24px;flex-wrap:wrap;padding:4px 18px 10px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .readouts b{color:var(--ink);font-weight:600}
+  .note{margin:2px 18px 12px;padding:10px 14px;border-left:4px solid var(--accent);background:#f2f6fa;border-radius:0 6px 6px 0;font-size:13.5px;line-height:1.55}
+  .note .t{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:650;margin-bottom:2px}
+  .eq{margin:0 18px 12px;font-family:var(--mono);font-size:12.5px;line-height:1.7;background:#f2f6fa;border-radius:6px;padding:8px 12px;white-space:pre;overflow-x:auto}
+  .hint{padding:0 18px 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  footer{padding:10px 18px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+  @media (max-width:600px){
+    header{flex-direction:column;gap:2px}
+    .sliders{grid-template-columns:1fr 140px} .sliders .lab{grid-column:1/-1;margin-top:4px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>The Twin Paradox</h1>
+    <div class="sub">One twin flies to a star and back at close to the speed of light. Who is older when they meet again?</div>
+  </header>
+
+  <div class="plotwrap"><svg id="plot" viewBox="0 0 920 470" role="img" aria-label="The twins' journey and a spacetime diagram of their worldlines"></svg></div>
+
+  <div class="zoomable">
+  <div class="presets" id="ex"><span class="lbl">Example:</span></div>
+
+  <div class="controls">
+    <button class="btn" id="play">&#9654; Launch</button>
+    <span style="font-size:13px;color:var(--muted)">Earth time</span>
+    <input id="t" type="range" min="0" max="1" step="0.001" style="flex:1;min-width:200px" aria-label="Time on Earth">
+  </div>
+  <div class="sliders">
+    <span class="lab">Cruising speed</span><input id="b" type="range" min="0.1" max="0.995" step="0.005" aria-label="Speed"><span class="v" id="bv"></span>
+    <span class="lab">Distance to the star</span><input id="d" type="range" min="0" max="2" step="any" aria-label="Distance"><span class="v" id="dv"></span>
+  </div>
+
+  <div class="toggles">
+    <label><input id="tSig" type="checkbox"> Birthday messages (a light signal every year)</label>
+    <label><input id="tSim" type="checkbox"> Traveller's "now" lines</label>
+    <label><input id="tBig" type="checkbox"> Projector mode (larger text)</label>
+  </div>
+
+  <div class="readouts" id="readouts"></div>
+  <div class="note" id="note"><span class="t" id="ntitle"></span><span id="ntext"></span></div>
+  <div class="eq" id="eq"></div>
+
+  <div class="hint">
+    <b>The paradox:</b> each twin sees the other moving, so shouldn't each think the other's clock runs slow? The two situations aren't symmetric. The twin on Earth stays in one inertial frame the whole time. The traveller has to fire the engines to turn around, and can feel it; for the trip there and the trip back they're in two different inertial frames. Only the Earth twin can use the time dilation formula for the whole journey, so it's the traveller who comes back younger.
+    The spacetime diagram shows it: the traveller's bent path between the same two events (leaving and returning) has less proper time than the straight one. Turn on the "now" lines to see the traveller's idea of "what time it is on Earth" jump at the turnaround.
+  </div>
+
+  <footer>
+    The turnaround is treated as instant, and acceleration at the start and end is ignored; adding realistic acceleration changes the numbers a little but not the conclusion. Both twins are 20 when the trip starts. Distances are in light-years and times in years, so light travels at 1 light-year per year.
+    <br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.
+  </footer>
+  </div>
+</div>
+
+<script>
+"use strict";
+const AGE0=20;
+const EXAMPLES=[
+  {name:"Workshop slide: 0.99c, 10 years for the traveller", b:0.99, d:0.99*5/Math.sqrt(1-0.99*0.99)},
+  {name:"Proxima Centauri at 0.8c", b:0.8, d:4.24},
+  {name:"Sirius at 0.5c", b:0.5, d:8.6},
+  {name:"Gentle trip: 0.1c to Proxima", b:0.1, d:4.24},
+];
+const bS=document.getElementById("b"), dS=document.getElementById("d"), tS=document.getElementById("t"), tSig=document.getElementById("tSig"), tSim=document.getElementById("tSim");
+const B=()=>+bS.value, D=()=>Math.pow(10,+dS.value)*1.5;     // 1.5 to 150 light-years
+const G=()=>1/Math.sqrt(1-B()*B());
+let playing=false, last=0;
+
+function trip(){ const b=B(), d=D(), g=G(), T=2*d/b; return {b,d,g,T,tau:T/g}; }
+function shipX(tr,t){ return t<=tr.T/2?tr.b*t:tr.d-tr.b*(t-tr.T/2); }
+function shipTau(tr,t){ return Math.min(t,tr.T)/tr.g; }
+
+// ---------- drawing ----------
+const svg=document.getElementById("plot"), NS="http://www.w3.org/2000/svg";
+const MONO='ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace';
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(a,s){const t=el("text",a);t.textContent=s;return t;}
+const SX0=60, SX1=470, SY=140;                       // scene
+const DX0=560, DX1=890, DY0=40, DY1=420;             // spacetime diagram
+
+function card(x,y,col,who,age,sub){
+  svg.appendChild(el("rect",{x:x-80,y,width:160,height:92,rx:8,fill:"#13233a",stroke:col}));
+  svg.appendChild(txt({x,y:y+20,fill:col,"font-size":12.5,"text-anchor":"middle","font-weight":650},who));
+  svg.appendChild(txt({x,y:y+56,fill:"#fff","font-size":30,"font-weight":650,"text-anchor":"middle","font-family":MONO},age.toFixed(age<100?1:0)));
+  svg.appendChild(txt({x,y:y+78,fill:"#a9bbcf","font-size":10.5,"text-anchor":"middle","font-family":MONO},sub));
+}
+function draw(){
+  const tr=trip(), t=tr.T*(+tS.value), x=shipX(tr,t), tau=shipTau(tr,t);
+  svg.textContent="";
+  // ===== scene =====
+  svg.appendChild(txt({x:(SX0+SX1)/2,y:24,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"The journey (Earth's frame)"));
+  const sx=v=>SX0+v/tr.d*(SX1-SX0);
+  svg.appendChild(el("line",{x1:SX0,x2:SX1,y1:SY,y2:SY,stroke:"#1c2c42","stroke-dasharray":"3 6"}));
+  svg.appendChild(el("circle",{cx:SX0,cy:SY,r:16,fill:"#4f8fd6"})); svg.appendChild(txt({x:SX0,y:SY+34,fill:"#a9bbcf","font-size":11,"text-anchor":"middle"},"Earth"));
+  svg.appendChild(el("circle",{cx:SX1,cy:SY,r:12,fill:"#fff3c4"})); svg.appendChild(el("circle",{cx:SX1,cy:SY,r:22,fill:"#ffd166","fill-opacity":0.15}));
+  svg.appendChild(txt({x:SX1,y:SY+34,fill:"#a9bbcf","font-size":11,"text-anchor":"middle"},"star, "+fmtLy(tr.d)));
+  const out=t<tr.T/2, px=sx(x);
+  svg.appendChild(el("path",{d:out?`M${px+14} ${SY-34}l-24 -7v14z`:`M${px-14} ${SY-34}l24 -7v14z`,fill:"var(--trav)"}));
+  if(t>0&&t<tr.T) svg.appendChild(el("path",{d:out?`M${px-12} ${SY-34}l-12 -4v8z`:`M${px+12} ${SY-34}l12 -4v8z`,fill:"#ffd166","fill-opacity":0.8}));
+  svg.appendChild(txt({x:SX0,y:SY-52,fill:"#a9bbcf","font-size":10.5,"font-family":MONO},t<=0?"about to launch":t>=tr.T?"home again":out?"outbound at "+tr.b.toFixed(2)+"c →":"← returning at "+tr.b.toFixed(2)+"c"));
+  card(SX0+90,250,"#4cc9f0","Twin on Earth",AGE0+t,"years old");
+  card(SX1-90,250,"#f4a261","Travelling twin",AGE0+tau,"years old");
+  if(t>=tr.T-1e-9) svg.appendChild(txt({x:(SX0+SX1)/2,y:380,fill:"#ffd166","font-size":14,"text-anchor":"middle","font-weight":650},"The traveller is now "+(tr.T-tr.tau).toFixed(1)+" years younger"));
+  // ===== spacetime diagram =====
+  svg.appendChild(txt({x:(DX0+DX1)/2,y:24,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Spacetime diagram (Earth's frame)"));
+  const span=Math.max(tr.T,tr.d*1.1), dx=v=>DX0+34+v/span*(DX1-DX0-50), dt=v=>DY1-v/tr.T*(DY1-DY0);
+  svg.appendChild(el("rect",{x:DX0,y:DY0,width:DX1-DX0,height:DY1-DY0,fill:"none",stroke:"#1c2c42"}));
+  svg.appendChild(txt({x:(DX0+DX1)/2,y:DY1+18,fill:"#7f95b0","font-size":11,"text-anchor":"middle","font-family":MONO},"distance from Earth →"));
+  svg.appendChild(txt({x:DX0-6,y:(DY0+DY1)/2,fill:"#7f95b0","font-size":11,"text-anchor":"middle","font-family":MONO,transform:`rotate(-90 ${DX0-6} ${(DY0+DY1)/2})`},"time (Earth twin's age) →"));
+  const cp=el("clipPath",{id:"dg"}); cp.appendChild(el("rect",{x:DX0,y:DY0-2,width:DX1-DX0,height:DY1-DY0+4}));
+  const defs=el("defs",{}); defs.appendChild(cp); svg.appendChild(defs);
+  const g=el("g",{"clip-path":"url(#dg)"}); svg.appendChild(g);
+  // a 45-degree light line for reference
+  g.appendChild(el("line",{x1:dx(0),y1:dt(0),x2:dx(tr.T),y2:dt(tr.T),stroke:"#3d5675","stroke-dasharray":"2 5"}));
+  // birthday messages
+  if(tSig.checked){
+    const step=Math.max(1,Math.ceil(tr.T/40));
+    for(let k=step;k<tr.T;k+=step){        // Earth sends at Earth time k; meets ship where x = t - k
+      let tm=null;
+      const t1=k/(1-tr.b); if(tr.b*t1<=tr.d&&t1<=tr.T/2) tm=t1; else { const t2=(tr.d+tr.b*tr.T/2+k)/(1+tr.b); if(t2<=tr.T) tm=t2; }
+      if(tm!==null&&k<=t) g.appendChild(el("line",{x1:dx(0),y1:dt(k),x2:dx(Math.max(0,Math.min(t,tm)-k)),y2:dt(Math.min(t,tm)),stroke:"#4cc9f0","stroke-opacity":0.55}));
+    }
+    const stepT=Math.max(1,Math.ceil(tr.tau/40));
+    for(let k=stepT;k<tr.tau;k+=stepT){     // traveller sends at their age k: Earth time te = k*g
+      const te=k*tr.g, xe=shipX(tr,te), arrive=te+xe;
+      if(te<=t) g.appendChild(el("line",{x1:dx(xe),y1:dt(te),x2:dx(xe-Math.min(t-te,xe)),y2:dt(Math.min(t,arrive)),stroke:"#f4a261","stroke-opacity":0.55}));
+    }
+  }
+  // traveller's lines of simultaneity
+  if(tSim.checked){
+    for(let f=0.1;f<1;f+=0.1){ const te=tr.T*f; if(Math.abs(f-0.5)<0.01) continue; if(te>t) break;
+      const xe=shipX(tr,te), s=te<tr.T/2?tr.b:-tr.b, tEarth=te-s*xe;   // where this "now" line meets Earth's worldline
+      g.appendChild(el("line",{x1:dx(xe),y1:dt(te),x2:dx(0),y2:dt(tEarth),stroke:"#9d8df1","stroke-opacity":0.8,"stroke-dasharray":"5 3"})); }
+    if(t>=tr.T/2){ const a=tr.T/2-tr.b*tr.d, b2=tr.T/2+tr.b*tr.d;
+      g.appendChild(el("line",{x1:dx(0),y1:dt(a),x2:dx(0),y2:dt(b2),stroke:"#9d8df1","stroke-width":5,"stroke-opacity":0.5}));
+      g.appendChild(txt({x:dx(0)+8,y:dt(b2)-6,fill:"#c8bffa","font-size":10.5,"font-family":MONO},"jump: "+(b2-a).toFixed(1)+" yr")); }
+  }
+  // worldlines
+  g.appendChild(el("line",{x1:dx(0),y1:dt(0),x2:dx(0),y2:dt(tr.T),stroke:"#4cc9f0","stroke-width":2.5}));
+  g.appendChild(el("path",{d:`M${dx(0)} ${dt(0)}L${dx(tr.d)} ${dt(tr.T/2)}L${dx(0)} ${dt(tr.T)}`,fill:"none",stroke:"#f4a261","stroke-width":2.5}));
+  g.appendChild(el("line",{x1:dx(tr.d),x2:dx(tr.d),y1:dt(0),y2:dt(tr.T),stroke:"#ffd166","stroke-opacity":0.3,"stroke-dasharray":"3 4"}));
+  g.appendChild(el("line",{x1:DX0,x2:DX1,y1:dt(t),y2:dt(t),stroke:"#e9eef4","stroke-opacity":0.35}));
+  g.appendChild(el("circle",{cx:dx(0),cy:dt(t),r:5,fill:"#4cc9f0"}));
+  g.appendChild(el("circle",{cx:dx(x),cy:dt(t),r:5,fill:"#f4a261"}));
+  // age ticks every few years along each worldline
+  const yrStep=[1,2,5,10,20,50].find(v=>tr.T/v<=14)||100;
+  for(let k=yrStep;k<tr.T;k+=yrStep) g.appendChild(txt({x:dx(0)-4,y:dt(k)+4,fill:"#4cc9f0","font-size":9,"text-anchor":"end","font-family":MONO},AGE0+k));
+  for(let k=yrStep;k<tr.tau;k+=yrStep){ const te=k*tr.g, xe=shipX(tr,te); g.appendChild(el("circle",{cx:dx(xe),cy:dt(te),r:2.2,fill:"#f4a261"}));
+    g.appendChild(txt({x:dx(xe)+5,y:dt(te)+3,fill:"#f4a261","font-size":9,"font-family":MONO},AGE0+k)); }
+  g.appendChild(txt({x:dx(tr.d)-6,y:dt(tr.T/2)-8,fill:"#f4a261","font-size":10.5,"text-anchor":"end","font-family":MONO},"turnaround"));
+  update(tr,t,tau);
+}
+function fmtLy(d){ return (d<10?d.toFixed(2):d.toFixed(1))+" ly"; }
+
+// ---------- readouts ----------
+function update(tr,t,tau){
+  document.getElementById("bv").textContent=tr.b.toFixed(3)+"c  (γ = "+tr.g.toFixed(2)+")";
+  document.getElementById("dv").textContent=fmtLy(tr.d);
+  document.getElementById("readouts").innerHTML=
+    `<span>whole trip, Earth clocks <b>${tr.T.toFixed(1)} yr</b></span><span>whole trip, traveller's clock <b>${tr.tau.toFixed(1)} yr</b></span>`+
+    `<span>age gap on return <b>${(tr.T-tr.tau).toFixed(1)} yr</b></span>`;
+  const out=t<tr.T/2;
+  let title, text;
+  if(t<=0){ title="Ready to launch"; text="Both twins are 20. Press Launch, or drag the time slider."; }
+  else if(t<tr.T/2-1e-9){ title="Outbound"; text=`On the way out each twin sees the other's clock running slow, and both are right in their own frames. The traveller is in one inertial frame; so is the Earth twin. So far it's perfectly symmetric.`; }
+  else if(t<tr.T-1e-9){ title="Turnaround and return"; text=`To come home the traveller fires the engines and switches to a different inertial frame. They feel this acceleration; the Earth twin feels nothing. That's what breaks the symmetry.${tSim.checked?" The purple lines show the traveller's \"now\" on Earth: switching frames makes it jump forward by years.":""}`; }
+  else{ title="Reunited"; text=`The Earth twin is ${(AGE0+tr.T).toFixed(1)} and the traveller is ${(AGE0+tr.tau).toFixed(1)}. The traveller really is younger, by ${(tr.T-tr.tau).toFixed(1)} years. Experiments with atomic clocks flown around the world (Hafele and Keating, 1971) confirm that moving clocks fall behind.`; }
+  document.getElementById("ntitle").textContent=title; document.getElementById("ntext").textContent=text;
+  document.getElementById("eq").textContent=
+    "Earth:     t = 2d / v = 2 × "+fmtLy(tr.d)+" / "+tr.b.toFixed(3)+"c = "+tr.T.toFixed(2)+" years\n"+
+    "Traveller: t₀ = t / γ = t × √(1 − v²/c²) = "+tr.T.toFixed(2)+" × "+(1/tr.g).toFixed(4)+" = "+tr.tau.toFixed(2)+" years";
+  for(const b of document.querySelectorAll("#ex .pill")){ const e=EXAMPLES[+b.dataset.i]; b.classList.toggle("on",Math.abs(e.b-tr.b)<0.001&&Math.abs(e.d/tr.d-1)<0.005); }
+}
+
+// ---------- controls ----------
+const eb=document.getElementById("ex");
+EXAMPLES.forEach((e,i)=>{ const b=document.createElement("button"); b.className="pill"; b.textContent=e.name; b.dataset.i=i;
+  b.addEventListener("click",()=>{ bS.value=e.b; dS.value=Math.log10(e.d/1.5); tS.value=0; draw(); }); eb.appendChild(b); });
+for(const c of [bS,dS,tS,tSig,tSim]) c.addEventListener("input",draw);
+document.getElementById("tBig").addEventListener("input",e=>document.body.classList.toggle("big",e.target.checked));
+const playBtn=document.getElementById("play");
+function tick(now){ if(!playing) return; const dt=Math.min((now-last)/1000,0.1); last=now;
+  let u=+tS.value+dt/9; if(u>=1){ u=1; playing=false; playBtn.innerHTML="&#9654; Launch"; } tS.value=u; draw(); if(playing) requestAnimationFrame(tick); }
+playBtn.addEventListener("click",()=>{ playing=!playing; playBtn.innerHTML=playing?"&#10074;&#10074; Pause":"&#9654; Launch";
+  if(playing){ if(+tS.value>=1) tS.value=0; last=performance.now(); requestAnimationFrame(tick); } });
+
+eb.querySelectorAll(".pill")[0].click();
+tS.value=1; draw();
+</script>
+</body>
+</html>
