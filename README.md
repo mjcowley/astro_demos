@@ -36,6 +36,9 @@ Companion repository: [Astro_Code](https://github.com/mjcowley/Astro_Code), a co
 | [The Light Clock and Time Dilation](https://mjcowley.github.io/astro_demos/light-clock/) | A light clock at rest beside a moving one, with the Pythagoras triangle behind t = γt₀ and a time dilation calculator with workbook examples. |
 | [Relativity of Simultaneity](https://mjcowley.github.io/astro_demos/simultaneity/) | Lightning strikes a moving train, or a flash goes off in the carriage: switch between platform and train frames, with a spacetime diagram. |
 | [Muons, Time Dilation and Length Contraction](https://mjcowley.github.io/astro_demos/muons/) | Cosmic-ray muons survive to the ground: explained by time dilation from Earth and length contraction from the muon, with the Frisch & Smith experiment. |
+| [The Twin Paradox](https://mjcowley.github.io/astro_demos/twins/) | Send one twin to a star and back near light speed, with age counters, a spacetime diagram, birthday light signals and the traveller's jumping "now" line. |
+| [The Ladder in the Barn](https://mjcowley.github.io/astro_demos/ladder-barn/) | A 10 m ladder races through an 8 m barn: watch from the barn or the ladder to see how the relativity of simultaneity resolves the paradox. |
+| [The Cosmic Speed Limit](https://mjcowley.github.io/astro_demos/speed-limit/) | Push a proton, electron or ball towards c and compare relativistic momentum and energy with Newton, plus a velocity addition calculator. |
 
 ## Embedding in Canvas
 
