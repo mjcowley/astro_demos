@@ -24,6 +24,10 @@ Companion repository: [Astro_Code](https://github.com/mjcowley/Astro_Code), a co
 | [Planet Temperatures](https://mjcowley.github.io/astro_demos/planet-temperature/) | See how distance, albedo, the greenhouse effect and the star set a planet's temperature, with the habitable zone. |
 | [Jeans Mass and Cloud Collapse](https://mjcowley.github.io/astro_demos/jeans-mass/) | Change a gas cloud's temperature, density and mass to see whether gravity or pressure wins. |
 | [Stellar Remnants Compared](https://mjcowley.github.io/astro_demos/stellar-remnants/) | Zoom from the Sun down to a city to compare white dwarfs, neutron stars and black holes, with a mass-radius diagram. |
+| [The Expanding Universe](https://mjcowley.github.io/astro_demos/expanding-universe/) | Watch space stretch and click any galaxy to see that every observer measures the same Hubble law, so there's no centre. |
+| [Cosmic Expansion History](https://mjcowley.github.io/astro_demos/expansion-history/) | Set the amounts of matter and dark energy to see a universe's expansion, age and fate, from Big Crunch to runaway acceleration. |
+| [The Cosmic Microwave Background](https://mjcowley.github.io/astro_demos/cmb/) | Run back to recombination as the CMB heats up, then explore a simulated sky map from uniform glow to dipole to ripples. |
+| [Galaxy Rotation Curves and Dark Matter](https://mjcowley.github.io/astro_demos/rotation-curve/) | Build a galaxy from bulge, disc and halo and fit simulated rotation-curve data to see how much dark matter it needs. |
 
 ## Embedding in Canvas
 

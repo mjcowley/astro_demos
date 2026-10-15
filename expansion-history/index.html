@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cosmic Expansion History</title>
+<style>
+  :root{
+    --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
+    --panel:#0d1826; --panel-edge:#22354c;
+    --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f6f8;padding:16px 8px}
+  .app{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 18px 10px}
+  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.01em}
+  header .sub{font-size:12px;color:var(--muted)}
+  .plotwrap{background:var(--panel);border-top:1px solid var(--panel-edge);border-bottom:1px solid var(--panel-edge)}
+  svg{display:block;width:100%;height:auto;touch-action:none}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:12px 18px 2px;font-size:13px}
+  .presets .lbl{color:var(--muted);margin-right:2px}
+  .pill{font:inherit;font-size:12.5px;padding:5px 11px;border:1px solid var(--line);background:#fff;border-radius:99px;cursor:pointer;color:var(--ink)}
+  .pill:hover{border-color:var(--accent)}
+  .pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .sliders{padding:8px 18px 4px;display:grid;grid-template-columns:200px 1fr 120px;gap:2px 14px;align-items:center;font-size:13px}
+  .sliders .v{font-family:var(--mono);font-size:12.5px}
+  input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+  .toggles{display:flex;gap:14px;flex-wrap:wrap;padding:4px 18px 6px;font-size:13px;color:var(--ink)}
+  .toggles label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .readouts{display:flex;gap:10px 24px;flex-wrap:wrap;padding:4px 18px 10px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .readouts b{color:var(--ink);font-weight:600}
+  .note{margin:2px 18px 12px;padding:10px 14px;border-left:4px solid var(--accent);background:#f2f6fa;border-radius:0 6px 6px 0;font-size:13.5px;line-height:1.55}
+  .hint{padding:0 18px 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  footer{padding:10px 18px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+  @media (max-width:600px){
+    header{flex-direction:column;gap:2px}
+    .sliders{grid-template-columns:1fr 100px} .sliders .lab{grid-column:1/-1;margin-top:4px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Cosmic Expansion History</h1>
+    <div class="sub">How much matter and dark energy a universe has decides its age and its fate</div>
+  </header>
+
+  <div class="plotwrap"><svg id="plot" viewBox="0 0 920 450" role="img" aria-label="Size of the universe against time, and a map of possible universes"></svg></div>
+
+  <div class="presets" id="unis"><span class="lbl">Universe:</span></div>
+
+  <div class="sliders">
+    <span class="lab">Matter (normal + dark), &Omega;<sub>m</sub></span><input id="om" type="range" min="0" max="3" step="0.01" aria-label="Matter density"><span class="v" id="omv"></span>
+    <span class="lab">Dark energy, &Omega;<sub>&Lambda;</sub></span><input id="ol" type="range" min="-1" max="3" step="0.01" aria-label="Dark energy density"><span class="v" id="olv"></span>
+    <span class="lab">Hubble constant H&#8320;</span><input id="h0" type="range" min="50" max="90" step="0.1" aria-label="Hubble constant"><span class="v" id="h0v"></span>
+  </div>
+
+  <div class="toggles">
+    <label><input id="tRef" type="checkbox" checked> Compare with our Universe and matter-only</label>
+  </div>
+
+  <div class="readouts" id="readouts"></div>
+  <div class="note" id="note"></div>
+
+  <div class="hint">
+    <b>Reading the graph:</b> the curve shows how big the universe is (the <i>scale factor</i>, with today = 1) against time. Every curve passes through "today"; where it reaches zero size is the Big Bang, so a curve that hits zero further to the left means an older universe.
+    Matter's gravity slows the expansion down (the curve bends over); dark energy speeds it up (the curve bends upward). With enough matter and no dark energy the expansion eventually reverses into a <i>Big Crunch</i>.
+    In 1998 supernova measurements showed our Universe's expansion is speeding up, the discovery of dark energy. Click anywhere on the map to try a different universe.
+  </div>
+
+  <footer>
+    Solves the Friedmann equations for matter, radiation (&Omega;<sub>r</sub> = 9&times;10&#8315;&#8309;) and a cosmological constant &Lambda;, with curvature &Omega;<sub>k</sub> = 1 &minus; &Omega;<sub>m</sub> &minus; &Omega;<sub>&Lambda;</sub> &minus; &Omega;<sub>r</sub>. Regions on the map are found numerically. "Our Universe" uses &Omega;<sub>m</sub> = 0.31, &Omega;<sub>&Lambda;</sub> = 0.69 and H&#8320; = 67.7 km/s/Mpc (Planck 2018).
+    <br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.
+  </footer>
+</div>
+
+<script>
+"use strict";
+const OR=9e-5, TH=977.8;   // radiation density; 1/H0 in Gyr is 977.8 / H0
+const UNIS=[["Our Universe",0.31,0.69,67.7],["Matter only (flat)",1,0,67.7],["Empty",0,0,67.7],["Big Crunch",3,0,67.7],["Lots of dark energy",0.3,1.6,67.7],["No dark matter",0.05,0,67.7]];
+const omS=document.getElementById("om"), olS=document.getElementById("ol"), hS=document.getElementById("h0"), tRef=document.getElementById("tRef");
+
+// ---------- cosmology (time in units of 1/H0) ----------
+const E2=(a,om,ol)=>OR/a**4+om/a**3+(1-om-ol-OR)/a**2+ol;
+const acc=(a,om,ol)=>-om/(2*a*a)-OR/(a*a*a)+ol*a;
+function integrate(om,ol,dir,tMax){       // from a = 1 (today) forwards (dir=1) or backwards (dir=-1)
+  let a=1, v=1, t=0; const pts=[[0,1]]; let event=null;
+  for(let i=0;i<200000;i++){
+    const h=Math.min(0.004,0.02*Math.pow(a,1.5))*dir;
+    // RK4 on (a, v)
+    const k1a=v, k1v=acc(a,om,ol);
+    const k2a=v+0.5*h*k1v, k2v=acc(a+0.5*h*k1a,om,ol);
+    const k3a=v+0.5*h*k2v, k3v=acc(a+0.5*h*k2a,om,ol);
+    const k4a=v+h*k3v, k4v=acc(a+h*k3a,om,ol);
+    const na=a+h/6*(k1a+2*k2a+2*k3a+k4a), nv=v+h/6*(k1v+2*k2v+2*k3v+k4v);
+    t+=h; if(dir<0&&nv*v<0&&!event) event={type:"bounce",t,a:na};
+    if(dir>0&&nv*v<0&&!event) event={type:"turn",t,a:na};
+    a=na; v=nv;
+    if(a<=0.001){ pts.push([t,0]); if(dir>0) event={type:"crunch",t}; else event=event||{type:"bang",t}; break; }
+    if(i%4===0) pts.push([t,a]);
+    if(Math.abs(t)>tMax||a>8) break;
+  }
+  return {pts,event};
+}
+function classify(om,ol){
+  // no Big Bang if the expansion rate squared goes negative somewhere in the past
+  for(let i=1;i<=60;i++){ const a=i/60; if(E2(a,om,ol)<=0) return "nobang"; }
+  for(let i=0;i<=60;i++){ const a=Math.pow(10,i/20); if(E2(a,om,ol)<=0) return "crunch"; }
+  return "forever";
+}
+
+// ---------- drawing ----------
+const svg=document.getElementById("plot"), NS="http://www.w3.org/2000/svg";
+const MONO='ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace';
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(a,s){const t=el("text",a);t.textContent=s;return t;}
+const X0=64, X1=560, Y0=30, Y1=390, TMIN=-25, TMAX=40, AMAX=3.2;
+const xT=t=>X0+(t-TMIN)/(TMAX-TMIN)*(X1-X0), yA=a=>Y1-Math.min(a,AMAX)/AMAX*(Y1-Y0);
+const MX0=650, MX1=900, MY0=40, MY1=360, OMMAX=3, OLMIN=-1, OLMAX=3;
+const mX=o=>MX0+o/OMMAX*(MX1-MX0), mY=l=>MY1-(l-OLMIN)/(OLMAX-OLMIN)*(MY1-MY0);
+
+function curve(om,ol,H0){
+  const k=TH/H0, back=integrate(om,ol,-1,(TMIN-5)/k*-1), fwd=integrate(om,ol,1,(TMAX+5)/k);
+  const pts=back.pts.slice().reverse().concat(fwd.pts.slice(1)).map(([t,a])=>[t*k,a]);
+  return {pts, back:back.event, fwd:fwd.event, k};
+}
+function path(pts){ let d="", pen=false;
+  for(const [t,a] of pts){ if(t<TMIN||t>TMAX||a>AMAX) { pen=false; continue; } d+=(pen?"L":"M")+xT(t).toFixed(1)+" "+yA(a).toFixed(1); pen=true; }
+  return d; }
+
+let mapImg=null;
+function buildMap(){                          // classify a grid of universes once
+  const nx=75, ny=100, c=document.createElement("canvas"); c.width=nx; c.height=ny;
+  const ctx=c.getContext("2d"), img=ctx.createImageData(nx,ny);
+  const col={forever:[42,157,143],crunch:[224,122,95],nobang:[120,120,140]};
+  for(let j=0;j<ny;j++) for(let i=0;i<nx;i++){
+    const om=(i+0.5)/nx*OMMAX, ol=OLMAX-(j+0.5)/ny*(OLMAX-OLMIN), k=4*(j*nx+i), cc=col[classify(om,ol)];
+    img.data[k]=cc[0]; img.data[k+1]=cc[1]; img.data[k+2]=cc[2]; img.data[k+3]=95;
+  }
+  ctx.putImageData(img,0,0); mapImg=c.toDataURL();
+}
+
+function draw(){
+  const om=+omS.value, ol=+olS.value, H0=+hS.value;
+  svg.textContent="";
+  // ===== a(t) =====
+  svg.appendChild(txt({x:(X0+X1)/2,y:18,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Size of the universe over time"));
+  for(let t=-20;t<=40;t+=10){ svg.appendChild(el("line",{x1:xT(t),x2:xT(t),y1:Y0,y2:Y1,stroke:t===0?"#3d5675":"#1c2c42"}));
+    svg.appendChild(txt({x:xT(t),y:Y1+15,fill:"#7f95b0","font-size":10.5,"text-anchor":"middle","font-family":MONO},t===0?"today":(t>0?"+":"−")+Math.abs(t))); }
+  for(let a=0;a<=3;a+=0.5){ svg.appendChild(el("line",{x1:X0,x2:X1,y1:yA(a),y2:yA(a),stroke:"#1c2c42"}));
+    svg.appendChild(txt({x:X0-6,y:yA(a)+4,fill:"#7f95b0","font-size":10.5,"text-anchor":"end","font-family":MONO},a)); }
+  svg.appendChild(txt({x:(X0+X1)/2,y:Y1+34,fill:"#a9bbcf","font-size":12,"text-anchor":"middle"},"Time from today (billions of years)"));
+  const ym=(Y0+Y1)/2;
+  svg.appendChild(txt({x:18,y:ym,fill:"#a9bbcf","font-size":12,"text-anchor":"middle",transform:`rotate(-90 18 ${ym})`},"Size of the universe (today = 1)"));
+  if(tRef.checked){
+    const refs=[[0.31,0.69,"#7f95b0","our Universe"],[1,0,"#5b6b7a","matter only"]];
+    for(const [o,l,c,n] of refs){ if(Math.abs(o-om)<0.005&&Math.abs(l-ol)<0.005) continue;
+      const cv=curve(o,l,67.7); svg.appendChild(el("path",{d:path(cv.pts),fill:"none",stroke:c,"stroke-width":1.4,"stroke-dasharray":"5 4"}));
+      const end=cv.pts.filter(p=>p[0]<=TMAX&&p[1]<=AMAX).pop();
+      if(end) svg.appendChild(txt({x:xT(end[0])-6,y:Math.max(yA(end[1])-6,Y0+14),fill:c,"font-size":10.5,"text-anchor":"end","font-family":MONO},n)); }
+  }
+  const cv=curve(om,ol,H0);
+  svg.appendChild(el("path",{d:path(cv.pts),fill:"none",stroke:"var(--spec)","stroke-width":2.6}));
+  svg.appendChild(el("circle",{cx:xT(0),cy:yA(1),r:5,fill:"#fff"}));
+  if(cv.back&&cv.back.type==="bang"&&cv.back.t*cv.k>=TMIN){
+    const x=xT(cv.back.t*cv.k);
+    svg.appendChild(el("path",{d:`M${x} ${Y1}l-6 -14h12z`,fill:"#ffd166"}));
+    svg.appendChild(txt({x:x+8,y:Y1-18,fill:"#ffd166","font-size":11,"font-family":MONO},"Big Bang"));
+  }
+  if(cv.fwd&&cv.fwd.type==="crunch"&&cv.fwd.t*cv.k<=TMAX){
+    const x=xT(cv.fwd.t*cv.k);
+    svg.appendChild(el("path",{d:`M${x} ${Y1}l-6 -14h12z`,fill:"#e07a5f"}));
+    svg.appendChild(txt({x:x-8,y:Y1-18,fill:"#e07a5f","font-size":11,"text-anchor":"end","font-family":MONO},"Big Crunch"));
+  }
+
+  // ===== map of universes =====
+  svg.appendChild(txt({x:(MX0+MX1)/2,y:18,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Possible universes (click to choose)"));
+  svg.appendChild(el("image",{href:mapImg,x:MX0,y:MY0,width:MX1-MX0,height:MY1-MY0,preserveAspectRatio:"none"}));
+  svg.appendChild(el("rect",{x:MX0,y:MY0,width:MX1-MX0,height:MY1-MY0,fill:"none",stroke:"#3d5675"}));
+  for(let o=0;o<=3;o++){ svg.appendChild(txt({x:mX(o),y:MY1+15,fill:"#7f95b0","font-size":10.5,"text-anchor":"middle","font-family":MONO},o)); }
+  for(let l=-1;l<=3;l++){ svg.appendChild(txt({x:MX0-6,y:mY(l)+4,fill:"#7f95b0","font-size":10.5,"text-anchor":"end","font-family":MONO},l<0?"−1":l)); }
+  svg.appendChild(txt({x:(MX0+MX1)/2,y:MY1+32,fill:"#a9bbcf","font-size":12,"text-anchor":"middle"},"Matter Ωm"));
+  const ym2=(MY0+MY1)/2;
+  svg.appendChild(txt({x:MX0-34,y:ym2,fill:"#a9bbcf","font-size":12,"text-anchor":"middle",transform:`rotate(-90 ${MX0-34} ${ym2})`},"Dark energy ΩΛ"));
+  // flat line and accelerate/decelerate line
+  svg.appendChild(el("line",{x1:mX(0),y1:mY(1),x2:mX(2),y2:mY(-1),stroke:"#e9eef4","stroke-width":1.2,"stroke-dasharray":"5 3"}));
+  svg.appendChild(txt({x:mX(1.62),y:mY(-0.7),fill:"#e9eef4","font-size":10,"font-family":MONO,transform:`rotate(${Math.atan2(mY(-1)-mY(1),mX(2)-mX(0))*180/Math.PI} ${mX(1.62)} ${mY(-0.7)})`},"flat"));
+  svg.appendChild(el("line",{x1:mX(0),y1:mY(0),x2:mX(3),y2:mY(1.5),stroke:"#ffd166","stroke-width":1,"stroke-dasharray":"2 3"}));
+  svg.appendChild(txt({x:mX(2.95),y:mY(1.5)-6,fill:"#ffd166","font-size":10,"text-anchor":"end","font-family":MONO},"speeding up ↑ / slowing ↓"));
+  svg.appendChild(txt({x:mX(0.15),y:mY(2.75),fill:"#d6d6e6","font-size":10.5,"font-family":MONO},"no Big Bang"));
+  svg.appendChild(txt({x:mX(2.85),y:mY(-0.8),fill:"#ffd2c4","font-size":10.5,"text-anchor":"end","font-family":MONO},"Big Crunch"));
+  svg.appendChild(txt({x:mX(1.7),y:mY(2.3),fill:"#bff0e4","font-size":10.5,"text-anchor":"middle","font-family":MONO},"expands forever"));
+  svg.appendChild(el("circle",{cx:mX(0.31),cy:mY(0.69),r:4,fill:"none",stroke:"#fff","stroke-width":1.2}));
+  svg.appendChild(el("circle",{cx:mX(om),cy:mY(ol),r:6,fill:"#ffd166",stroke:"#fff","stroke-width":1.5}));
+  return cv;
+}
+
+// ---------- readouts ----------
+function update(cv){
+  const om=+omS.value, ol=+olS.value, H0=+hS.value, k=1-om-ol-OR, cls=classify(om,ol), q0=om/2-ol+OR;
+  document.getElementById("omv").textContent=om.toFixed(2);
+  document.getElementById("olv").textContent=ol.toFixed(2);
+  document.getElementById("h0v").textContent=H0.toFixed(1)+" km/s/Mpc";
+  const age=cv.back&&cv.back.type==="bang"?-cv.back.t*cv.k:null;
+  const geo=Math.abs(k)<0.01?"flat":k>0?"open (negatively curved)":"closed (positively curved)";
+  const fate=cls==="crunch"?"Big Crunch "+(cv.fwd&&cv.fwd.type==="crunch"?"in "+(cv.fwd.t*cv.k).toFixed(0)+" billion years":"in the far future")
+    :cls==="nobang"?"no Big Bang":ol>0?"expands forever, faster and faster":"expands forever, slowing down";
+  document.getElementById("readouts").innerHTML=
+    `<span>age <b>${age?age.toFixed(1)+" billion years":"–"}</b></span><span>fate <b>${fate}</b></span>`+
+    `<span>expansion now is <b>${q0<0?"speeding up":"slowing down"}</b></span><span>geometry <b>${geo}</b></span>`;
+  let msg;
+  if(cls==="nobang") msg="With this much dark energy and so little matter, running the clock backwards the universe would stop shrinking and bounce, so it never had a Big Bang. Observations rule this out: we see the cosmic microwave background and the light elements made in a hot Big Bang.";
+  else if(Math.abs(om-0.31)<0.006&&Math.abs(ol-0.69)<0.006) msg=`This is our Universe. For its first ~9 billion years matter dominated and the expansion slowed; since then dark energy has taken over and the expansion is speeding up. Its age, ${age.toFixed(1)} billion years, is close to 1/H₀ = ${(TH/H0).toFixed(1)} billion years.`;
+  else if(cls==="crunch") msg="There's enough matter for gravity to win: the expansion slows, stops, and reverses, ending in a Big Crunch. A universe like this would also be younger than one with dark energy.";
+  else if(ol<=0&&om<=1) msg=`Without dark energy the expansion only ever slows down, and the universe is younger than 1/H₀: here ${age?age.toFixed(1):"–"} billion years. A matter-only universe with today's H₀ would be younger than the oldest stars we observe (about 13 billion years), one of the clues that pointed to dark energy.`;
+  else msg=`With more dark energy the expansion speeds up sooner, and tracing it back takes longer to reach the Big Bang, so the universe is older: ${age?age.toFixed(1):"–"} billion years.`;
+  document.getElementById("note").textContent=msg;
+  for(const b of document.querySelectorAll("#unis .pill")){ const u=UNIS[+b.dataset.i];
+    b.classList.toggle("on",Math.abs(u[1]-om)<0.006&&Math.abs(u[2]-ol)<0.006); }
+}
+function render(){ update(draw()); }
+
+// ---------- controls ----------
+const ub=document.getElementById("unis");
+UNIS.forEach((u,i)=>{ const b=document.createElement("button"); b.className="pill"; b.textContent=u[0]; b.dataset.i=i;
+  b.addEventListener("click",()=>{ omS.value=u[1]; olS.value=u[2]; hS.value=u[3]; render(); }); ub.appendChild(b); });
+for(const c of [omS,olS,hS,tRef]) c.addEventListener("input",render);
+let drag=false;
+function pick(e){ const r=svg.getBoundingClientRect(), X=(e.clientX-r.left)/r.width*920, Y=(e.clientY-r.top)/r.height*450;
+  omS.value=Math.min(Math.max((X-MX0)/(MX1-MX0)*OMMAX,0),OMMAX).toFixed(2);
+  olS.value=Math.min(Math.max(OLMAX-(Y-MY0)/(MY1-MY0)*(OLMAX-OLMIN),OLMIN),OLMAX).toFixed(2); render(); }
+svg.addEventListener("pointerdown",e=>{ const r=svg.getBoundingClientRect(), X=(e.clientX-r.left)/r.width*920, Y=(e.clientY-r.top)/r.height*450;
+  if(X<MX0||X>MX1||Y<MY0||Y>MY1) return; drag=true; svg.setPointerCapture(e.pointerId); pick(e); });
+svg.addEventListener("pointermove",e=>{ if(drag) pick(e); });
+svg.addEventListener("pointerup",()=>drag=false);
+
+buildMap();
+omS.value=0.31; olS.value=0.69; hS.value=67.7;
+render();
+</script>
+</body>
+</html>
