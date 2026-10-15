@@ -33,6 +33,9 @@ Companion repository: [Astro_Code](https://github.com/mjcowley/Astro_Code), a co
 | [Gravitational Time Dilation](https://mjcowley.github.io/astro_demos/time-dilation/) | Compare clocks near the Earth, Sun, a white dwarf, a neutron star or a black hole, including the GPS correction. |
 | [Galaxy Colours and Star Formation](https://mjcowley.github.io/astro_demos/galaxy-colours/) | Follow a galaxy on linked UVJ and star-forming main sequence diagrams as it grows, bursts, quenches and gets dusty (approximate colours). |
 | [AGN Unified Model](https://mjcowley.github.io/astro_demos/agn/) | Change the viewing angle of an active galactic nucleus to turn it into a blazar, quasar, Seyfert 1 or Seyfert 2, with matching spectra. |
+| [The Light Clock and Time Dilation](https://mjcowley.github.io/astro_demos/light-clock/) | A light clock at rest beside a moving one, with the Pythagoras triangle behind t = γt₀ and a time dilation calculator with workbook examples. |
+| [Relativity of Simultaneity](https://mjcowley.github.io/astro_demos/simultaneity/) | Lightning strikes a moving train, or a flash goes off in the carriage: switch between platform and train frames, with a spacetime diagram. |
+| [Muons, Time Dilation and Length Contraction](https://mjcowley.github.io/astro_demos/muons/) | Cosmic-ray muons survive to the ground: explained by time dilation from Earth and length contraction from the muon, with the Frisch & Smith experiment. |
 
 ## Embedding in Canvas
 
