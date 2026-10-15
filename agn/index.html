@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AGN Unified Model</title>
+<style>
+  :root{
+    --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
+    --panel:#0d1826; --panel-edge:#22354c;
+    --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f6f8;padding:16px 8px}
+  .app{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 18px 10px}
+  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.01em}
+  header .sub{font-size:12px;color:var(--muted)}
+  .plotwrap{background:var(--panel);border-top:1px solid var(--panel-edge);border-bottom:1px solid var(--panel-edge)}
+  svg{display:block;width:100%;height:auto;touch-action:none}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:12px 18px 2px;font-size:13px}
+  .presets .lbl{color:var(--muted);margin-right:2px}
+  .pill{font:inherit;font-size:12.5px;padding:5px 11px;border:1px solid var(--line);background:#fff;border-radius:99px;cursor:pointer;color:var(--ink)}
+  .pill:hover{border-color:var(--accent)}
+  .pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .controls{padding:8px 18px 4px;display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center}
+  .btn{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:6px;cursor:pointer;min-width:84px}
+  .abox{font-family:var(--mono);font-size:22px;font-weight:600;min-width:150px}
+  .abox small{font-size:12px;color:var(--muted);font-weight:400;display:block}
+  input[type=range]{flex:1;min-width:220px;accent-color:var(--accent);height:28px}
+  .toggles{display:flex;gap:14px;flex-wrap:wrap;padding:4px 18px 6px;font-size:13px;color:var(--ink)}
+  .toggles label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .readouts{display:flex;gap:10px 24px;flex-wrap:wrap;padding:4px 18px 10px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .readouts b{color:var(--ink);font-weight:600}
+  .note{margin:2px 18px 12px;padding:10px 14px;border-left:4px solid var(--accent);background:#f2f6fa;border-radius:0 6px 6px 0;font-size:13.5px;line-height:1.55}
+  .note .t{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:650;margin-bottom:2px}
+  .hint{padding:0 18px 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  footer{padding:10px 18px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+  @media (max-width:560px){ header{flex-direction:column;gap:2px} .abox{font-size:18px;min-width:0} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>AGN Unified Model</h1>
+    <div class="sub">One kind of object, many names: what you see depends on the angle you view it from</div>
+  </header>
+
+  <div class="plotwrap"><svg id="plot" viewBox="0 0 920 470" role="img" aria-label="Cross-section of an active galactic nucleus and the spectrum seen from the chosen angle"></svg></div>
+
+  <div class="presets" id="views"><span class="lbl">Look from:</span></div>
+
+  <div class="controls">
+    <button class="btn" id="play">&#9654; Sweep</button>
+    <div class="abox"><small>viewing angle from the jet axis</small><span id="angv">30</span>°</div>
+    <input id="ang" type="range" min="0" max="90" step="0.5" aria-label="Viewing angle">
+  </div>
+
+  <div class="toggles">
+    <label><input id="tJets" type="checkbox" checked> Radio jets (radio-loud)</label>
+    <label><input id="tLum" type="checkbox" checked> Very luminous (quasar rather than Seyfert)</label>
+    <label><input id="tLab" type="checkbox" checked> Label the parts</label>
+  </div>
+
+  <div class="readouts" id="readouts"></div>
+  <div class="note" id="note"><span class="t" id="ntitle"></span><span id="ntext"></span></div>
+
+  <div class="hint">
+    <b>The unified model:</b> at the heart of an active galaxy a supermassive black hole is fed by a hot, glowing <i>accretion disc</i>. Fast-moving gas clouds close in (the <i>broad-line region</i>) produce emission lines smeared out by speeds of thousands of km/s, while slower clouds further out give narrow lines. A thick, dusty <i>torus</i> surrounds it all, and some AGN also launch jets at nearly the speed of light.
+    Look in past the torus and you see the disc and broad lines (<i>type 1</i>); look through the torus and they're hidden, leaving only narrow lines and infrared glow (<i>type 2</i>); look straight down a jet and its beamed light outshines everything (a <i>blazar</i>). Drag the eye around the diagram or use the slider.
+  </div>
+
+  <footer>
+    A schematic, not to scale: the broad-line region is light-days to light-weeks across, the torus parsecs, and the narrow-line region hundreds of parsecs, while jets can reach millions of light years. The torus opening angle and the angle boundaries are typical values; real AGN vary, and some differences between types aren't due to orientation alone. Spectra are sketches showing which features appear, with fluxes in arbitrary units.
+    <br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.
+  </footer>
+</div>
+
+<script>
+"use strict";
+const angS=document.getElementById("ang"), tJets=document.getElementById("tJets"), tLum=document.getElementById("tLum"), tLab=document.getElementById("tLab");
+const TORUS=50;      // torus opening half-angle from the axis (degrees)
+
+function classify(a){
+  const jets=tJets.checked, lum=tLum.checked;
+  if(jets&&a<10) return {key:"blazar", name:"Blazar", type:"jet-dominated"};
+  if(a<TORUS-8) return {key:"t1", name:jets?(lum?"Radio-loud quasar":"Broad-line radio galaxy"):(lum?"Quasar":"Seyfert 1 galaxy"), type:"type 1"};
+  if(a<TORUS+6) return {key:"t15", name:jets?"Partly obscured radio galaxy":(lum?"Reddened quasar":"Seyfert 1.8 / 1.9 galaxy"), type:"intermediate"};
+  return {key:"t2", name:jets?"Narrow-line radio galaxy":(lum?"Type 2 quasar":"Seyfert 2 galaxy"), type:"type 2"};
+}
+
+// ---------- drawing ----------
+const svg=document.getElementById("plot"), NS="http://www.w3.org/2000/svg";
+const MONO='ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace';
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(a,s){const t=el("text",a);t.textContent=s;return t;}
+const CX=265, CY=245, ER=205;
+const RNG=s=>()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; };
+const BLR=(()=>{ const r=RNG(4); return Array.from({length:26},()=>{ const a=2*Math.PI*r(), d=14+22*r(); return [d*Math.cos(a),d*Math.sin(a)*0.8]; }); })();
+const NLR=(()=>{ const r=RNG(9); const out=[]; for(let i=0;i<34;i++){ const up=i%2?1:-1, a=(r()-0.5)*2*(TORUS-8)*Math.PI/180, d=80+95*r();
+  out.push([d*Math.sin(a),-up*d*Math.cos(a),2.5+3*r()]); } return out; })();
+
+function lab(x,y,s,anchor,col){ if(!tLab.checked) return; svg.appendChild(txt({x,y,fill:col||"#c3d2e2","font-size":11,"text-anchor":anchor||"start","font-family":MONO},s)); }
+function draw(){
+  const a=+angS.value, rad=a*Math.PI/180, c=classify(a);
+  svg.textContent="";
+  const defs=el("defs",{});
+  const tg=el("radialGradient",{id:"torus"}); tg.appendChild(el("stop",{offset:"0%","stop-color":"#8a5a3c"})); tg.appendChild(el("stop",{offset:"100%","stop-color":"#4a2f20"})); defs.appendChild(tg);
+  const dg=el("radialGradient",{id:"disc"}); dg.appendChild(el("stop",{offset:"0%","stop-color":"#ffffff"})); dg.appendChild(el("stop",{offset:"45%","stop-color":"#9fd8ff"})); dg.appendChild(el("stop",{offset:"100%","stop-color":"#ffb703","stop-opacity":0.3})); defs.appendChild(dg);
+  svg.appendChild(defs);
+  svg.appendChild(txt({x:CX,y:22,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Cross-section through an active galactic nucleus (drag the eye)"));
+  // opening-angle guides
+  for(const s of [-1,1]) for(const v of [-1,1]){ const r=TORUS*Math.PI/180;
+    svg.appendChild(el("line",{x1:CX,y1:CY,x2:CX+s*ER*Math.sin(r),y2:CY+v*ER*Math.cos(r),stroke:"#3d5675","stroke-dasharray":"2 5"})); }
+  // jets
+  if(tJets.checked) for(const v of [-1,1]){
+    svg.appendChild(el("path",{d:`M${CX-4} ${CY}L${CX-14} ${CY+v*210}L${CX+14} ${CY+v*210}L${CX+4} ${CY}Z`,fill:"#9d8df1","fill-opacity":0.45}));
+    for(let k=1;k<=4;k++) svg.appendChild(el("ellipse",{cx:CX,cy:CY+v*(40+k*40),rx:5+k*1.5,ry:4,fill:"#d6cffb","fill-opacity":0.7}));
+  }
+  // narrow-line region
+  for(const [x,y,r] of NLR) svg.appendChild(el("circle",{cx:CX+x,cy:CY+y,r,fill:"#5fbf7f","fill-opacity":0.55}));
+  // torus cross-section
+  for(const s of [-1,1]) svg.appendChild(el("ellipse",{cx:CX+s*92,cy:CY,rx:52,ry:44,fill:"url(#torus)",stroke:"#b07a52"}));
+  // broad-line region and disc
+  for(const [x,y] of BLR) svg.appendChild(el("circle",{cx:CX+x,cy:CY+y,r:3,fill:"#ff6b6b","fill-opacity":0.85}));
+  svg.appendChild(el("ellipse",{cx:CX,cy:CY,rx:36,ry:5,fill:"url(#disc)"}));
+  svg.appendChild(el("circle",{cx:CX,cy:CY,r:4.5,fill:"#000",stroke:"#ffd166","stroke-width":1}));
+  // labels
+  lab(CX+150,CY+4,"dusty torus","start","#e0b48a");
+  lab(CX-42,CY+26,"accretion disc + black hole","end","#9fd8ff");
+  lab(CX+42,CY-30,"broad-line region","start","#ff9b9b");
+  lab(CX+70,CY-150,"narrow-line region","start","#9be0b0");
+  if(tJets.checked) lab(CX+20,CY-200,"jet","start","#d6cffb");
+  // line of sight and eye
+  const ex=CX+ER*Math.sin(rad), ey=CY-ER*Math.cos(rad);
+  const blocked=a>TORUS+6;
+  svg.appendChild(el("line",{x1:ex,y1:ey,x2:CX,y2:CY,stroke:blocked?"#e07a5f":"#ffd166","stroke-width":1.6,"stroke-dasharray":"6 4"}));
+  if(blocked){ const tx=CX+75*Math.sin(rad), ty=CY-75*Math.cos(rad);
+    svg.appendChild(el("path",{d:`M${tx-7} ${ty-7}L${tx+7} ${ty+7}M${tx-7} ${ty+7}L${tx+7} ${ty-7}`,stroke:"#e07a5f","stroke-width":3})); }
+  const eye=el("g",{style:"cursor:grab"});
+  eye.appendChild(el("ellipse",{cx:ex,cy:ey,rx:15,ry:9,fill:"#e9eef4",stroke:"#fff"}));
+  eye.appendChild(el("circle",{cx:ex-6*Math.sin(rad),cy:ey+6*Math.cos(rad),r:4.5,fill:"#182430"}));
+  svg.appendChild(eye);
+  svg.appendChild(el("path",{d:`M${CX} ${CY-ER}A${ER} ${ER} 0 0 1 ${CX+ER} ${CY}`,fill:"none",stroke:"#3d5675","stroke-dasharray":"1 6"}));
+
+  drawSpectrum(c,a);
+  drawChecklist(c,a);
+  return c;
+}
+
+// spectrum sketch, 3500 to 7000 Angstrom
+const SX0=580, SX1=900, SY0=50, SY1=250, L0=3500, L1=7000;
+const sxl=l=>SX0+(l-L0)/(L1-L0)*(SX1-SX0);
+function gauss(l,c,s){ return Math.exp(-0.5*((l-c)/s)**2); }
+function spectrum(l,c,a){
+  const broadW=(c.key==="t1")?1:(c.key==="t15")?Math.max(0,1-(a-(TORUS-8))/14):0;
+  const agn=(c.key==="t1"?1:c.key==="t15"?0.35*broadW+0.05:0.03);
+  let f=0;
+  const host=0.35*(l<4000?0.45:0.9)*(1+0.00004*(l-4000));          // older starlight, with the 4000 Angstrom break
+  if(c.key==="blazar") return 1.2*Math.pow(l/5000,-0.6)+0.05*gauss(l,5007,6);
+  f+=agn*1.4*Math.pow(l/5000,-1.5)+host;
+  const bs=v=>v*l/3e5;
+  for(const [lc,amp] of [[4861,0.55],[6563,1.6],[4340,0.25]]) f+=broadW*amp*gauss(l,lc,bs(2200)*lc/l);
+  // broad H-alpha survives a little longer than H-beta in intermediate types
+  if(c.key==="t15") f+=0.5*Math.max(0,1-(a-(TORUS-8))/10)*gauss(l,6563,48);
+  const nAmp=c.key==="t1"?0.6:1.2;
+  for(const [lc,amp] of [[5007,1],[4959,0.33],[3727,0.35],[6583,0.35],[6563,0.5],[4861,0.15]]) f+=nAmp*amp*gauss(l,lc,5);
+  return f;
+}
+function drawSpectrum(c,a){
+  svg.appendChild(txt({x:(SX0+SX1)/2,y:22,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Visible spectrum you'd measure"));
+  svg.appendChild(el("rect",{x:SX0,y:SY0,width:SX1-SX0,height:SY1-SY0,fill:"none",stroke:"#1c2c42"}));
+  let mx=0; const pts=[];
+  for(let i=0;i<=500;i++){ const l=L0+(L1-L0)*i/500, f=spectrum(l,c,a); pts.push([l,f]); mx=Math.max(mx,f); }
+  let d=""; pts.forEach(([l,f],i)=>d+=(i?"L":"M")+sxl(l).toFixed(1)+" "+(SY1-f/mx*(SY1-SY0)*0.9).toFixed(1));
+  svg.appendChild(el("path",{d,fill:"none",stroke:"var(--spec)","stroke-width":1.6}));
+  for(const l of [4000,5000,6000,7000]) svg.appendChild(txt({x:sxl(l),y:SY1+14,fill:"#7f95b0","font-size":10,"text-anchor":l===7000?"end":"middle","font-family":MONO},l+" Å"));
+  if(c.key!=="blazar"){
+    const tag=(l,s,dx=0)=>{ const f=spectrum(l,c,a); svg.appendChild(txt({x:sxl(l)+dx,y:Math.max(SY1-f/mx*(SY1-SY0)*0.9-6,SY0+10),fill:"#c3d2e2","font-size":9.5,"text-anchor":"middle","font-family":MONO},s)); };
+    tag(4861,"Hβ",-8); tag(5007,"[OIII]",10); tag(6563,"Hα"); tag(3727,"[OII]");
+  }else svg.appendChild(txt({x:(SX0+SX1)/2,y:SY0+20,fill:"#c3d2e2","font-size":11,"text-anchor":"middle","font-family":MONO},"smooth, almost featureless"));
+}
+function drawChecklist(c,a){
+  const items=[
+    ["Blue light from the accretion disc", c.key==="t1"||c.key==="blazar"?"yes":c.key==="t15"?"weak":"no"],
+    ["Broad emission lines", c.key==="t1"?"yes":c.key==="t15"?"Hα only":c.key==="blazar"?"swamped":"no"],
+    ["Narrow emission lines", c.key==="blazar"?"swamped":"yes"],
+    ["Strong infrared from warm dust", "yes"],
+    ["Soft X-rays", c.key==="t2"?"absorbed":c.key==="t15"?"partly":"yes"],
+    ["Rapid, violent variability", c.key==="blazar"?"yes":c.key==="t1"?"some":"little"],
+  ];
+  svg.appendChild(txt({x:SX0,y:300,fill:"#a9bbcf","font-size":12.5},"What you'd observe"));
+  items.forEach(([s,v],i)=>{ const y=326+i*22, good=v==="yes", bad=v==="no"||v==="absorbed"||v==="swamped"||v==="little";
+    svg.appendChild(el("circle",{cx:SX0+7,cy:y-4,r:6,fill:good?"#2a9d8f":bad?"#5b6b7a":"#e9c46a"}));
+    svg.appendChild(txt({x:SX0+20,y,fill:"#e9eef4","font-size":11.5},s));
+    svg.appendChild(txt({x:SX1,y,fill:good?"#5fd3b4":bad?"#7f95b0":"#e9c46a","font-size":11,"text-anchor":"end","font-family":MONO},v)); });
+}
+
+// ---------- readouts ----------
+const NOTES={
+  blazar:"Looking almost straight down the jet. Material in the jet moves at nearly the speed of light towards us, so its light is beamed and boosted many times over, outshining everything else and flickering on timescales of hours to days.",
+  t1:"Looking in past the edge of the torus, we have a clear view of the hot accretion disc and the fast-moving clouds close to the black hole. The spectrum shows a blue continuum and broad emission lines (from gas moving at thousands of km/s) as well as narrow lines.",
+  t15:"Our line of sight grazes the edge of the torus. Some broad Hα still gets through, but Hβ and the blue disc light are mostly hidden by dust.",
+  t2:"Our view of the centre is blocked by the dusty torus. We only see the narrow-line clouds that stick out above and below it, plus infrared glow from the warm dust itself. Polarised (reflected) light can still reveal hidden broad lines, which is how this picture was first worked out.",
+};
+function update(c){
+  const a=+angS.value;
+  document.getElementById("angv").textContent=a.toFixed(0);
+  document.getElementById("readouts").innerHTML=`<span>classified as <b>${c.name}</b></span><span>type <b>${c.type}</b></span>`;
+  document.getElementById("ntitle").textContent=c.name;
+  document.getElementById("ntext").textContent=NOTES[c.key]+(c.key==="t2"&&tJets.checked?" From the side, the jets and the giant radio lobes they inflate are seen at full length, as in Cygnus A.":"");
+  for(const b of document.querySelectorAll("#views .pill")) b.classList.toggle("on",Math.abs(+b.dataset.a-a)<0.6);
+}
+function render(){ update(draw()); }
+
+// ---------- controls ----------
+const VIEWS=[["Down the jet",3],["From above",30],["Edge of the torus",50],["Side on",80]];
+const vb=document.getElementById("views");
+for(const [n,a] of VIEWS){ const b=document.createElement("button"); b.className="pill"; b.textContent=n; b.dataset.a=a;
+  b.addEventListener("click",()=>{ angS.value=a; render(); }); vb.appendChild(b); }
+for(const c of [angS,tJets,tLum,tLab]) c.addEventListener("input",render);
+let drag=false;
+function dragTo(e){ const r=svg.getBoundingClientRect(), X=(e.clientX-r.left)/r.width*920-CX, Y=CY-(e.clientY-r.top)/r.height*470;
+  let a=Math.atan2(Math.abs(X),Y)*180/Math.PI; angS.value=Math.min(Math.max(a,0),90); render(); }
+svg.addEventListener("pointerdown",e=>{ const r=svg.getBoundingClientRect(), X=(e.clientX-r.left)/r.width*920;
+  if(X>540) return; drag=true; svg.setPointerCapture(e.pointerId); dragTo(e); });
+svg.addEventListener("pointermove",e=>{ if(drag) dragTo(e); });
+svg.addEventListener("pointerup",()=>drag=false);
+let playing=false, last=0, dir=1;
+const playBtn=document.getElementById("play");
+function tick(now){ if(!playing) return; const dt=Math.min((now-last)/1000,0.1); last=now;
+  let a=+angS.value+dir*dt*12; if(a>=90){ a=90; dir=-1; } if(a<=0){ a=0; dir=1; } angS.value=a; render(); requestAnimationFrame(tick); }
+playBtn.addEventListener("click",()=>{ playing=!playing; playBtn.innerHTML=playing?"&#10074;&#10074; Pause":"&#9654; Sweep";
+  if(playing){ last=performance.now(); requestAnimationFrame(tick); } });
+
+angS.value=30;
+render();
+</script>
+</body>
+</html>

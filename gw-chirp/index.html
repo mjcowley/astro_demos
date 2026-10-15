@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gravitational Wave Chirp</title>
+<style>
+  :root{
+    --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
+    --panel:#0d1826; --panel-edge:#22354c;
+    --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f6f8;padding:16px 8px}
+  .app{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 18px 10px}
+  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.01em}
+  header .sub{font-size:12px;color:var(--muted)}
+  .plotwrap{background:var(--panel);border-top:1px solid var(--panel-edge);border-bottom:1px solid var(--panel-edge)}
+  svg{display:block;width:100%;height:auto}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:12px 18px 2px;font-size:13px}
+  .presets .lbl{color:var(--muted);min-width:64px}
+  .pill{font:inherit;font-size:12.5px;padding:5px 11px;border:1px solid var(--line);background:#fff;border-radius:99px;cursor:pointer;color:var(--ink)}
+  .pill:hover{border-color:var(--accent)}
+  .pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .controls{padding:10px 18px 4px;display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}
+  .btn{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:6px;cursor:pointer}
+  .btn.ghost{background:#fff;color:var(--accent)}
+  .sliders{padding:6px 18px 4px;display:grid;grid-template-columns:150px 1fr 170px;gap:2px 14px;align-items:center;font-size:13px}
+  .sliders .v{font-family:var(--mono);font-size:12.5px}
+  input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+  .toggles{display:flex;gap:14px;flex-wrap:wrap;padding:4px 18px 6px;font-size:13px;color:var(--ink)}
+  .toggles label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .readouts{display:flex;gap:10px 24px;flex-wrap:wrap;padding:4px 18px 10px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .readouts b{color:var(--ink);font-weight:600}
+  .note{margin:2px 18px 12px;padding:10px 14px;border-left:4px solid var(--accent);background:#f2f6fa;border-radius:0 6px 6px 0;font-size:13.5px;line-height:1.55}
+  .hint{padding:0 18px 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  footer{padding:10px 18px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+  @media (max-width:600px){
+    header{flex-direction:column;gap:2px}
+    .sliders{grid-template-columns:1fr 130px} .sliders .lab{grid-column:1/-1;margin-top:4px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Gravitational Wave Chirp</h1>
+    <div class="sub">Two compact objects spiral together, sending out ripples in space that rise in pitch until they merge</div>
+  </header>
+
+  <div class="plotwrap"><svg id="plot" viewBox="0 0 920 460" role="img" aria-label="Orbit of two merging objects and the gravitational wave signal"></svg></div>
+
+  <div class="presets" id="events"><span class="lbl">Event:</span></div>
+
+  <div class="controls">
+    <button class="btn" id="play">&#9654; Play in slow motion</button>
+    <button class="btn ghost" id="sound">&#128264; Hear the chirp</button>
+    <div class="presets" id="wins" style="padding:0"><span class="lbl" style="min-width:0">Show the last:</span></div>
+  </div>
+
+  <div class="sliders">
+    <span class="lab">Mass of object 1</span><input id="m1" type="range" min="0" max="2" step="any" aria-label="Mass 1"><span class="v" id="m1v"></span>
+    <span class="lab">Mass of object 2</span><input id="m2" type="range" min="0" max="2" step="any" aria-label="Mass 2"><span class="v" id="m2v"></span>
+    <span class="lab">Distance</span><input id="D" type="range" min="1" max="3.7" step="any" aria-label="Distance"><span class="v" id="Dv"></span>
+  </div>
+
+  <div class="toggles">
+    <label><input id="tPitch" type="checkbox" checked> Raise the pitch for small speakers (×4)</label>
+  </div>
+
+  <div class="readouts" id="readouts"></div>
+  <div class="note" id="note"></div>
+
+  <div class="hint">
+    <b>Why it chirps:</b> two orbiting masses continually stir up space-time, sending out gravitational waves that carry energy away. Losing energy, the pair spirals closer, orbits faster, and radiates even more strongly, so the wave's frequency and strength both climb: a "chirp". The gravitational wave frequency is twice the orbital frequency.
+    Heavier pairs merge at lower frequencies, so black holes give a short, low chirp while neutron stars sweep up through the detectors' band for over a minute. The <i>chirp mass</i>, which sets how fast the frequency rises, is what the signal measures best.
+    The first detection, GW150914, stretched and squeezed LIGO's 4 km arms by about a thousandth of the width of a proton.
+  </div>
+
+  <footer>
+    The inspiral uses the leading-order (quadrupole) formula for a circular orbit, which is accurate early on but only approximate near the merger. The merger is placed where the pair reaches the innermost stable orbit, and the ringdown is an illustrative damped wave. Real signals are found by comparing data with detailed numerical-relativity waveforms. Strain is for an optimally oriented source.
+    <br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.
+  </footer>
+</div>
+
+<script>
+"use strict";
+const TSUN=4.925491e-6, MPC_M=3.0857e22, C=2.998e8, MSUN_M=1476.6;   // G Msun / c^3 (s), Mpc, c, G Msun / c^2 (m)
+const EVENTS=[
+  {name:"GW150914 (black holes)", m1:36, m2:29, D:410},
+  {name:"GW170817 (neutron stars)", m1:1.46, m2:1.27, D:40},
+  {name:"Two 10 M☉ black holes", m1:10, m2:10, D:400},
+  {name:"Black hole and neutron star", m1:9, m2:1.9, D:300},
+];
+const WINS=[0.05,0.2,1,10];
+const m1S=document.getElementById("m1"), m2S=document.getElementById("m2"), DS=document.getElementById("D"), tPitch=document.getElementById("tPitch");
+const M1=()=>Math.pow(10,+m1S.value), M2=()=>Math.pow(10,+m2S.value), Dist=()=>Math.pow(10,+DS.value);
+let win=0.2, playing=false, playT=0, last=0;
+
+// ---------- physics ----------
+function sys(){
+  const m1=M1(), m2=M2(), M=m1+m2, Mc=Math.pow(m1*m2,0.6)/Math.pow(M,0.2), tc=Mc*TSUN;
+  const fISCO=1/(Math.pow(6,1.5)*Math.PI*M*TSUN);                // gravitational-wave frequency at the innermost stable orbit
+  const tau=f=>5/256*Math.pow(Math.PI*f,-8/3)*Math.pow(tc,-5/3);  // time left before coalescence
+  const fAt=t=>Math.pow(5/(256*t),3/8)*Math.pow(tc,-5/8)/Math.PI;
+  const tISCO=tau(fISCO);
+  const ns=m=>m<3;
+  return {m1,m2,M,Mc,tc,fISCO,tau,fAt,tISCO,kind:ns(m1)&&ns(m2)?"nsns":ns(m1)||ns(m2)?"bhns":"bhbh"};
+}
+// signal at time t (s, merger at t = 0): returns {h (normalised), f}
+function signal(s,t){
+  if(t<0){
+    const T=-t+s.tISCO, f=s.fAt(T), ph=-2*Math.pow(T/(5*s.tc),5/8);
+    return {h:Math.pow(f/s.fISCO,2/3)*Math.cos(ph), f, ph};
+  }
+  const frd=1.5*s.fISCO, damp=Math.exp(-t*frd/1.6);              // ringdown: a few cycles, decaying
+  const ph0=-2*Math.pow(s.tISCO/(5*s.tc),5/8);
+  return {h:damp*Math.cos(ph0+2*Math.PI*frd*t), f:frd, ph:0};
+}
+function strainPeak(s){ const f=s.fISCO, D=Dist()*MPC_M;
+  return 4*Math.pow(s.Mc*MSUN_M,5/3)*Math.pow(Math.PI*f/C,2/3)/D; }
+
+// ---------- drawing ----------
+const svg=document.getElementById("plot"), NS="http://www.w3.org/2000/svg";
+const MONO='ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace';
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(a,s){const t=el("text",a);t.textContent=s;return t;}
+const OX=150, OY=150, WX0=330, WX1=900, WY=110, WH=78, FY0=230, FY1=300;
+const BX0=60, BX1=900, BY=390;
+let gDyn=null, wave=null;
+
+function tStart(s){ return -Math.min(win, Math.max(s.tau(10)-s.tISCO, 0.002)); }
+function drawStatic(){
+  const s=sys(), t0=tStart(s), t1=0.02*Math.max(1,s.M/20);
+  svg.textContent="";
+  svg.appendChild(txt({x:OX,y:20,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"The orbit (seen from above)"));
+  svg.appendChild(el("circle",{cx:OX,cy:OY,r:118,fill:"none",stroke:"#1c2c42"}));
+  // waveform
+  svg.appendChild(txt({x:(WX0+WX1)/2,y:20,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Gravitational wave signal (stretch of space)"));
+  const xT=t=>WX0+(t-t0)/(t1-t0)*(WX1-WX0);
+  svg.appendChild(el("line",{x1:WX0,x2:WX1,y1:WY,y2:WY,stroke:"#1c2c42"}));
+  const cycles=(signal(s,-1e-9).ph-signal(s,t0).ph)/(2*Math.PI);
+  if(cycles>250){   // too many cycles to draw one by one: show the envelope instead
+    let up="", dn=""; const N=400;
+    for(let i=0;i<=N;i++){ const t=t0+(t1-t0)*i/N, a=t<0?Math.pow(signal(s,t).f/s.fISCO,2/3):Math.exp(-t*1.5*s.fISCO/1.6);
+      up+=(i?"L":"M")+xT(t).toFixed(1)+" "+(WY-a*WH).toFixed(1); dn=`L${xT(t).toFixed(1)} ${(WY+a*WH).toFixed(1)}`+dn; }
+    svg.appendChild(el("path",{d:up+dn+"Z",fill:"var(--spec)","fill-opacity":0.55}));
+    svg.appendChild(txt({x:WX0+8,y:WY+WH+14,fill:"#a9bbcf","font-size":10.5,"font-family":MONO},Math.round(cycles).toLocaleString()+" wave cycles: too many to draw, so the outline is shown"));
+  }else{
+    let d=""; const N=2400;
+    for(let i=0;i<=N;i++){ const t=t0+(t1-t0)*i/N, v=signal(s,t).h; d+=(i?"L":"M")+xT(t).toFixed(2)+" "+(WY-v*WH).toFixed(2); }
+    svg.appendChild(el("path",{d,fill:"none",stroke:"var(--spec)","stroke-width":1.1}));
+  }
+  svg.appendChild(el("line",{x1:xT(0),x2:xT(0),y1:WY-WH-8,y2:FY1,stroke:"#e07a5f","stroke-dasharray":"3 3"}));
+  svg.appendChild(txt({x:xT(0)-4,y:WY+WH+14,fill:"#e07a5f","font-size":10.5,"text-anchor":"end","font-family":MONO},"merger"));
+  // frequency track
+  svg.appendChild(txt({x:WX0,y:FY0-8,fill:"#a9bbcf","font-size":11.5},"Frequency (Hz, log scale)"));
+  const fmin=Math.max(5,signal(s,t0).f*0.8), fmax=1.6*1.5*s.fISCO, yF=f=>FY1-(Math.log10(f)-Math.log10(fmin))/(Math.log10(fmax)-Math.log10(fmin))*(FY1-FY0);
+  for(const f of [10,20,50,100,200,500,1000,2000,5000]) if(f>fmin&&f<fmax){
+    svg.appendChild(el("line",{x1:WX0,x2:WX1,y1:yF(f),y2:yF(f),stroke:"#1c2c42"}));
+    svg.appendChild(txt({x:WX0-6,y:yF(f)+4,fill:"#7f95b0","font-size":10,"text-anchor":"end","font-family":MONO},f)); }
+  let df=""; for(let i=0;i<=300;i++){ const t=t0+(0-t0)*i/300; df+=(i?"L":"M")+xT(t).toFixed(1)+" "+yF(signal(s,t).f).toFixed(1); }
+  svg.appendChild(el("path",{d:df,fill:"none",stroke:"#4cc9f0","stroke-width":2}));
+  // time axis
+  const span=t1-t0, st=[0.001,0.002,0.005,0.01,0.02,0.05,0.1,0.2,0.5,1,2,5].find(v=>span/v<=8)||2;
+  for(let t=Math.ceil(t0/st)*st;t<=t1+1e-9;t+=st){ svg.appendChild(txt({x:xT(t),y:FY1+16,fill:"#7f95b0","font-size":10,"text-anchor":"middle","font-family":MONO},Math.abs(t)<1e-9?"0":(t<0?"−":"+")+(+Math.abs(t).toPrecision(2)))); }
+  svg.appendChild(txt({x:(WX0+WX1)/2,y:FY1+32,fill:"#a9bbcf","font-size":11.5,"text-anchor":"middle"},"Seconds before (−) and after (+) the merger"));
+  // LIGO band strip
+  svg.appendChild(txt({x:BX0,y:BY-22,fill:"#a9bbcf","font-size":11.5},"Where this sits in frequency: LIGO/Virgo hear roughly 10 Hz to a few kHz, much like the range of human hearing"));
+  const lX=f=>BX0+(Math.log10(f)-0)/(4.3)*(BX1-BX0);
+  svg.appendChild(el("rect",{x:lX(10),y:BY-6,width:lX(3000)-lX(10),height:12,rx:3,fill:"#2a9d8f","fill-opacity":0.35}));
+  svg.appendChild(el("rect",{x:lX(20),y:BY+10,width:lX(20000)-lX(20),height:6,rx:3,fill:"#9d8df1","fill-opacity":0.45}));
+  for(const f of [1,10,100,1000,10000]) svg.appendChild(txt({x:lX(f),y:BY+34,fill:"#7f95b0","font-size":10,"text-anchor":"middle","font-family":MONO},f>=1000?(f/1000)+" kHz":f+" Hz"));
+  svg.appendChild(txt({x:lX(10)+4,y:BY+3,fill:"#bff0e4","font-size":9.5,"font-family":MONO},"detectors"));
+  svg.appendChild(txt({x:lX(20000)-4,y:BY+15,fill:"#d6cffb","font-size":9.5,"text-anchor":"end","font-family":MONO},"human hearing"));
+  svg.appendChild(el("line",{x1:lX(signal(s,t0).f),x2:lX(1.5*s.fISCO),y1:BY-14,y2:BY-14,stroke:"var(--spec)","stroke-width":3}));
+  svg.appendChild(txt({x:lX(1.5*s.fISCO)+6,y:BY-10,fill:"#ffd166","font-size":10,"font-family":MONO},"this signal"));
+  wave={s,t0,t1,xT};
+  gDyn=el("g",{}); svg.appendChild(gDyn);
+}
+function bodyR(m){ return 6+5*Math.cbrt(m/10); }
+function drawDyn(){
+  const {s,t0,t1,xT}=wave, t=t0+(t1-t0)*playT;
+  gDyn.textContent="";
+  gDyn.appendChild(el("line",{x1:xT(t),x2:xT(t),y1:WY-WH-4,y2:FY1,stroke:"#fff","stroke-opacity":0.6}));
+  // orbit: separation from Kepler's law, at the gravitational-wave frequency / 2
+  const sg=signal(s,Math.min(t,0)), fo=sg.f/2;
+  const aNow=Math.cbrt(s.M*TSUN/(Math.pow(2*Math.PI*fo,2))), aStart=Math.cbrt(s.M*TSUN/(Math.pow(2*Math.PI*signal(s,t0).f/2,2)));
+  const R=Math.max(100*aNow/aStart,8), ang=sg.ph/2;
+  if(t<0){
+    const r1=R*s.m2/s.M, r2=R*s.m1/s.M;
+    const draw=(m,r,a)=>{ const x=OX+r*Math.cos(a), y=OY+r*Math.sin(a), rr=bodyR(m);
+      if(m<3){ gDyn.appendChild(el("circle",{cx:x,cy:y,r:rr*1.6,fill:"#9fd8e0","fill-opacity":0.2})); gDyn.appendChild(el("circle",{cx:x,cy:y,r:rr*0.8,fill:"#e9f6ff"})); }
+      else { gDyn.appendChild(el("circle",{cx:x,cy:y,r:rr*1.3,fill:"none",stroke:"#f4a261","stroke-opacity":0.6,"stroke-width":2})); gDyn.appendChild(el("circle",{cx:x,cy:y,r:rr,fill:"#000",stroke:"#3d5675"})); } };
+    draw(s.m1,r1,ang); draw(s.m2,r2,ang+Math.PI);
+    // ripples
+    for(let k=1;k<=4;k++){ const rr=((k-((playT*40)%1))*28)+R; gDyn.appendChild(el("circle",{cx:OX,cy:OY,r:Math.min(rr,118),fill:"none",stroke:"#4cc9f0","stroke-opacity":0.25/k})); }
+  }else{
+    const flash=Math.exp(-t/(t1*0.4));
+    if(s.kind==="nsns"){ gDyn.appendChild(el("circle",{cx:OX,cy:OY,r:20+60*(1-flash),fill:"#ffd166","fill-opacity":0.25+0.5*flash})); }
+    gDyn.appendChild(el("circle",{cx:OX,cy:OY,r:bodyR(s.M)*1.1,fill:"#000",stroke:"#f4a261","stroke-width":2}));
+    for(let k=1;k<=4;k++) gDyn.appendChild(el("circle",{cx:OX,cy:OY,r:Math.min(30+k*24+40*playT,118),fill:"none",stroke:"#4cc9f0","stroke-opacity":0.3*flash/k}));
+    gDyn.appendChild(txt({x:OX,y:OY+100,fill:"#e07a5f","font-size":12,"text-anchor":"middle"},s.kind==="nsns"?"Merged: a kilonova flash and a new black hole (or neutron star)":"Merged into one black hole, which rings down"));
+  }
+  gDyn.appendChild(txt({x:OX,y:OY+136,fill:"#a9bbcf","font-size":11,"text-anchor":"middle","font-family":MONO},t<0?"orbits "+Math.round(fo)+" times a second":"ringdown"));
+}
+
+// ---------- audio ----------
+let actx=null;
+function playSound(){
+  const s=sys(); actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+  const sr=actx.sampleRate, k=tPitch.checked?4:1;
+  const tA=-Math.min(Math.max(s.tau(Math.max(15,20/k*0+15))-s.tISCO,0.05),4);   // up to the last 4 seconds
+  const tB=0.03*Math.max(1,s.M/20), n=Math.floor((tB-tA)*sr), buf=actx.createBuffer(1,n,sr), ch=buf.getChannelData(0);
+  let phase=0, peak=0;
+  for(let i=0;i<n;i++){ const t=tA+i/sr, sg=signal(s,t); phase+=2*Math.PI*sg.f*k/sr;
+    const amp=t<0?Math.pow(sg.f/s.fISCO,2/3):Math.exp(-t*1.5*s.fISCO/1.6);
+    ch[i]=amp*Math.sin(phase); peak=Math.max(peak,Math.abs(ch[i])); }
+  const fade=Math.floor(0.05*sr); for(let i=0;i<Math.min(fade,n);i++) ch[i]*=i/fade;
+  for(let i=0;i<n;i++) ch[i]*=0.6/peak;
+  const src=actx.createBufferSource(); src.buffer=buf; src.connect(actx.destination); src.start();
+}
+
+// ---------- readouts ----------
+function sci(v){ const e=Math.floor(Math.log10(v)); return (v/10**e).toFixed(1)+"×10"+String(e).replace(/[0-9-]/g,c=>"⁰¹²³⁴⁵⁶⁷⁸⁹"[+c]||"⁻"); }
+function fmtT(t){ return t>=120?(t/60).toFixed(1)+" minutes":t>=1?t.toFixed(1)+" s":(t*1000).toFixed(0)+" ms"; }
+function update(){
+  const s=sys(), inBand=Math.max(s.tau(20)-s.tISCO,0), h=strainPeak(s);
+  document.getElementById("m1v").textContent=M1().toFixed(M1()<10?2:1)+" M☉"+(M1()<3?" (neutron star)":"");
+  document.getElementById("m2v").textContent=M2().toFixed(M2()<10?2:1)+" M☉"+(M2()<3?" (neutron star)":"");
+  document.getElementById("Dv").textContent=Math.round(Dist()).toLocaleString()+" Mpc ("+(Dist()<300?Math.round(Dist()*3.26)+" million":(Dist()*3.26/1000).toFixed(1)+" billion")+" ly)";
+  document.getElementById("readouts").innerHTML=
+    `<span>chirp mass <b>${s.Mc.toFixed(s.Mc<5?2:1)} M☉</b></span><span>frequency at merger <b>${Math.round(s.fISCO)} Hz</b></span>`+
+    `<span>time in band from 20 Hz <b>${fmtT(inBand)}</b></span><span>peak strain <b>${sci(h)}</b></span>`+
+    `<span>4 km arm changes by <b>${sci(h*4000)} m</b></span>`;
+  document.getElementById("note").textContent=
+    s.kind==="nsns"?`Neutron stars are light, so their chirp is slow and high: about ${fmtT(inBand)} in the detectors' band, rising to over ${Math.round(s.fISCO/100)*100} Hz. GW170817 was also seen as a gamma-ray burst and a kilonova, the start of multi-messenger astronomy.`
+    :s.kind==="bhns"?"A black hole swallowing a neutron star: the chirp is in between the two extremes. If the black hole is small enough, it can tear the neutron star apart first."
+    :`Heavy black holes merge at low frequency (${Math.round(s.fISCO)} Hz), so only the last ${fmtT(inBand)} or so is in the detectors' band: a short "whoop". The waves stretch the 4 km detector arms by just ${sci(h*4000)} m.`;
+  for(const b of document.querySelectorAll("#events .pill")){ const e=EVENTS[+b.dataset.i];
+    b.classList.toggle("on",Math.abs(e.m1/M1()-1)<0.01&&Math.abs(e.m2/M2()-1)<0.01&&Math.abs(e.D/Dist()-1)<0.01); }
+  for(const b of document.querySelectorAll("#wins .pill")) b.classList.toggle("on",+b.dataset.w===win);
+}
+function render(){ drawStatic(); drawDyn(); update(); }
+
+// ---------- controls ----------
+const eb=document.getElementById("events");
+EVENTS.forEach((e,i)=>{ const b=document.createElement("button"); b.className="pill"; b.textContent=e.name; b.dataset.i=i;
+  b.addEventListener("click",()=>{ m1S.value=Math.log10(e.m1); m2S.value=Math.log10(e.m2); DS.value=Math.log10(e.D);
+    win=e.m1<3?10:0.2; playT=0; render(); }); eb.appendChild(b); });
+const wb=document.getElementById("wins");
+for(const w of WINS){ const b=document.createElement("button"); b.className="pill"; b.textContent=w<1?(w*1000)+" ms":w+" s"; b.dataset.w=w;
+  b.addEventListener("click",()=>{ win=w; playT=0; render(); }); wb.appendChild(b); }
+for(const c of [m1S,m2S,DS]) c.addEventListener("input",()=>{ playT=0; render(); });
+const playBtn=document.getElementById("play");
+function tick(now){ if(!playing) return; const dt=Math.min((now-last)/1000,0.1); last=now;
+  playT=Math.min(playT+dt/7,1); drawDyn(); if(playT>=1){ playing=false; playBtn.innerHTML="&#9654; Play in slow motion"; return; } requestAnimationFrame(tick); }
+playBtn.addEventListener("click",()=>{ playing=!playing; playBtn.innerHTML=playing?"&#10074;&#10074; Pause":"&#9654; Play in slow motion";
+  if(playing){ if(playT>=1) playT=0; last=performance.now(); requestAnimationFrame(tick); } });
+document.getElementById("sound").addEventListener("click",playSound);
+
+eb.querySelectorAll(".pill")[0].click();
+</script>
+</body>
+</html>

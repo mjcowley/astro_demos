@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gravitational Lensing</title>
+<style>
+  :root{
+    --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
+    --panel:#0d1826; --panel-edge:#22354c;
+    --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f6f8;padding:16px 8px}
+  .app{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 18px 10px}
+  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.01em}
+  header .sub{font-size:12px;color:var(--muted)}
+  .plotwrap{background:var(--panel);border-top:1px solid var(--panel-edge);border-bottom:1px solid var(--panel-edge)}
+  svg{display:block;width:100%;height:auto;touch-action:none}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:12px 18px 2px;font-size:13px}
+  .presets .lbl{color:var(--muted);min-width:56px}
+  .pill{font:inherit;font-size:12.5px;padding:5px 11px;border:1px solid var(--line);background:#fff;border-radius:99px;cursor:pointer;color:var(--ink)}
+  .pill:hover{border-color:var(--accent)}
+  .pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .sliders{padding:8px 18px 4px;display:grid;grid-template-columns:150px 1fr 170px;gap:2px 14px;align-items:center;font-size:13px}
+  .sliders .v{font-family:var(--mono);font-size:12.5px}
+  input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+  .toggles{display:flex;gap:14px;flex-wrap:wrap;padding:4px 18px 6px;font-size:13px;color:var(--ink)}
+  .toggles label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .readouts{display:flex;gap:10px 24px;flex-wrap:wrap;padding:4px 18px 10px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .readouts b{color:var(--ink);font-weight:600}
+  .note{margin:2px 18px 12px;padding:10px 14px;border-left:4px solid var(--accent);background:#f2f6fa;border-radius:0 6px 6px 0;font-size:13.5px;line-height:1.55}
+  .hint{padding:0 18px 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  footer{padding:10px 18px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+  @media (max-width:600px){
+    header{flex-direction:column;gap:2px}
+    .sliders{grid-template-columns:1fr 130px} .sliders .lab{grid-column:1/-1;margin-top:4px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Gravitational Lensing</h1>
+    <div class="sub">Drag a distant galaxy behind a massive foreground lens and watch its light bend into arcs, copies and rings</div>
+  </header>
+
+  <div class="plotwrap"><svg id="plot" viewBox="0 0 920 540" role="img" aria-label="Source galaxy, its lensed image and a side view of the light paths"></svg></div>
+
+  <div class="presets" id="examples"><span class="lbl">Try:</span></div>
+  <div class="presets" id="lenses"><span class="lbl">Lens:</span></div>
+
+  <div class="sliders">
+    <span class="lab">Lens mass</span><input id="M" type="range" min="10" max="15" step="any" aria-label="Lens mass"><span class="v" id="Mv"></span>
+    <span class="lab">Background galaxy size</span><input id="rs" type="range" min="0.1" max="6" step="0.05" aria-label="Source size"><span class="v" id="rsv"></span>
+  </div>
+
+  <div class="toggles">
+    <label><input id="tLens" type="checkbox" checked> Show the lens galaxy's own light</label>
+    <label><input id="tRing" type="checkbox" checked> Einstein radius</label>
+  </div>
+
+  <div class="readouts" id="readouts"></div>
+  <div class="note" id="note"></div>
+
+  <div class="hint">
+    <b>How it works:</b> General relativity says mass curves space, so light passing a massive object is bent, just as a glass lens bends light. A galaxy or cluster sitting in front of a more distant galaxy can bend that galaxy's light around it.
+    When the two line up perfectly, the light arrives from every side and forms an <i>Einstein ring</i>; slightly off-centre, it breaks into arcs or two or four separate images. The size of the ring depends on the lens's mass, so lensing lets astronomers weigh galaxies and clusters, including their dark matter. Lensing also magnifies the background galaxy, acting as a natural telescope.
+  </div>
+
+  <footer>
+    Images are made by tracing light rays through a thin lens: a point mass, a singular isothermal sphere (a simple galaxy model) or an isothermal sphere plus external shear (an elongated lens). Distances assume a lens at redshift 0.5 and a background galaxy at redshift 2 in flat &Lambda;CDM, with the Einstein radius computed for the point-mass case and used to scale the others. The background galaxy is an illustrative model.
+    <br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.
+  </footer>
+</div>
+
+<script>
+"use strict";
+// angular-diameter distances (Mpc) for z_lens = 0.5, z_source = 2 in flat LCDM, and GM_sun/c^2 in Mpc
+const DL=1259, DS=1726, DLS=1140, RG=4.79e-20, RAD_AS=206264.8;
+const thetaE=M=>Math.sqrt(4*RG*M*DLS/(DL*DS))*RAD_AS;    // arcsec, point mass
+
+const LENSES=[["Galaxy (isothermal)","sis"],["Elongated galaxy","sie"],["Point mass","pt"]];
+const EXAMPLES=[
+  {name:"Einstein ring",   lens:"sis", M:12, rs:0.18, bx:0,    by:0},
+  {name:"Two images",      lens:"sis", M:12, rs:0.12, bx:0.45, by:0.15},
+  {name:"Einstein cross",  lens:"sie", M:12, rs:0.06, bx:0.05, by:0.03},
+  {name:"Giant arc",       lens:"sis", M:14.7, rs:0.1, bx:0.16, by:0.05},
+  {name:"No alignment",    lens:"sis", M:12, rs:0.15, bx:2.4,  by:-1.2},
+];
+let lens="sis", srcAs={x:0.8,y:0.2};    // source position in arcsec; converted to Einstein radii when tracing rays
+const MS=document.getElementById("M"), rsS=document.getElementById("rs"), tLens=document.getElementById("tLens"), tRing=document.getElementById("tRing");
+const mass=()=>Math.pow(10,+MS.value);
+let thE=thetaE(1e12);
+const rsrc=()=>+rsS.value/thE;              // source size in Einstein radii
+const srcU=()=>({x:srcAs.x/thE, y:srcAs.y/thE});
+
+// ---------- lens equation, in units of the Einstein radius ----------
+const SHEAR=[0.12,0.05];
+function deflect(x,y){
+  const r2=x*x+y*y+1e-9;
+  if(lens==="pt") return [x/r2,y/r2];
+  const r=Math.sqrt(r2); let ax=x/r, ay=y/r;
+  if(lens==="sie"){ ax+=SHEAR[0]*x+SHEAR[1]*y; ay+=SHEAR[1]*x-SHEAR[0]*y; }
+  return [ax,ay];
+}
+// background galaxy: exponential disc with two spiral arms and a few star-forming knots
+const KNOTS=[[0.5,0.3],[-0.4,0.55],[0.1,-0.6],[-0.6,-0.2],[0.65,-0.35]];
+function srcBright(x,y){
+  const R=rsrc(), src=srcU(), dx=(x-src.x)/R, dy=(y-src.y)/R, r=Math.hypot(dx,dy);
+  if(r>3) return 0;
+  const th=Math.atan2(dy,dx), arm=0.5+0.5*Math.cos(2*th-4*Math.log(r+0.15));
+  let b=Math.exp(-r*2.2)*(0.55+0.45*arm)+0.9*Math.exp(-r*r*25);
+  for(const [kx,ky] of KNOTS) b+=0.35*Math.exp(-((dx-kx)**2+(dy-ky)**2)*60);
+  return b;
+}
+
+// ---------- rendering ----------
+const svg=document.getElementById("plot"), NS="http://www.w3.org/2000/svg";
+const MONO='ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace';
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(a,s){const t=el("text",a);t.textContent=s;return t;}
+const N=240, FIELD=2.4;                                // pixels, and half-width in Einstein radii
+const P1={x:40,y:44,s:380}, P2={x:500,y:44,s:380};
+const cvs=document.createElement("canvas"); cvs.width=cvs.height=N; const ctx=cvs.getContext("2d");
+let unlensedSum=1;
+
+function paint(mapFn,lensLight){
+  const img=ctx.createImageData(N,N); let sum=0;
+  for(let j=0;j<N;j++) for(let i=0;i<N;i++){
+    const x=((i+0.5)/N*2-1)*FIELD, y=(1-(j+0.5)/N*2)*FIELD;
+    const [sx,sy]=mapFn(x,y), b=srcBright(sx,sy); sum+=b;
+    let r=170*b, g=200*b, bl=255*Math.min(1,b*1.2);
+    if(lensLight){ const l=0.9*Math.exp(-Math.hypot(x/0.9,y/0.6)*3.2); r+=255*l; g+=170*l; bl+=90*l; }
+    const k=4*(j*N+i); img.data[k]=Math.min(255,r+6); img.data[k+1]=Math.min(255,g+10); img.data[k+2]=Math.min(255,bl+20); img.data[k+3]=255;
+  }
+  ctx.putImageData(img,0,0); return {url:cvs.toDataURL(),sum};
+}
+const toPx=(P,x,y)=>({X:P.x+(x/FIELD+1)/2*P.s, Y:P.y+(1-y/FIELD)/2*P.s});
+
+function draw(){
+  svg.textContent="";
+  thE=thetaE(mass()); const src=srcU();
+  // source plane
+  const u=paint((x,y)=>[x,y],false); unlensedSum=u.sum;
+  svg.appendChild(txt({x:P1.x+P1.s/2,y:30,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Without the lens (drag the galaxy)"));
+  svg.appendChild(el("image",{href:u.url,x:P1.x,y:P1.y,width:P1.s,height:P1.s}));
+  // lensed image
+  const l=paint((x,y)=>{ const [ax,ay]=deflect(x,y); return [x-ax,y-ay]; },tLens.checked);
+  svg.appendChild(txt({x:P2.x+P2.s/2,y:30,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"What the telescope sees"));
+  svg.appendChild(el("image",{href:l.url,x:P2.x,y:P2.y,width:P2.s,height:P2.s}));
+  for(const P of [P1,P2]) svg.appendChild(el("rect",{x:P.x,y:P.y,width:P.s,height:P.s,fill:"none",stroke:"#3d5675"}));
+  // lens position marker and Einstein radius
+  const c1=toPx(P1,0,0);
+  svg.appendChild(el("path",{d:`M${c1.X-7} ${c1.Y}H${c1.X+7}M${c1.X} ${c1.Y-7}V${c1.Y+7}`,stroke:"#f4a261","stroke-width":1.6}));
+  svg.appendChild(txt({x:c1.X+9,y:c1.Y+16,fill:"#f4a261","font-size":10.5,"font-family":MONO},"lens is here"));
+  if(tRing.checked) for(const P of [P1,P2]){ const c=toPx(P,0,0);
+    svg.appendChild(el("circle",{cx:c.X,cy:c.Y,r:P.s/(2*FIELD),fill:"none",stroke:"#ffd166","stroke-dasharray":"4 4","stroke-opacity":0.6})); }
+  // arcsecond scale bar
+  const asPerUnit=thE, barAs=[0.5,1,2,5,10,20,50,100].find(v=>v/asPerUnit*P2.s/(2*FIELD)>40)||100;
+  const bw=barAs/asPerUnit*P2.s/(2*FIELD);
+  svg.appendChild(el("line",{x1:P2.x+12,x2:P2.x+12+bw,y1:P2.y+P2.s-14,y2:P2.y+P2.s-14,stroke:"#e9eef4","stroke-width":2}));
+  svg.appendChild(txt({x:P2.x+12,y:P2.y+P2.s-20,fill:"#e9eef4","font-size":10.5,"font-family":MONO},barAs+"″"));
+  // drag handle
+  const sp=toPx(P1,src.x,src.y);
+  svg.appendChild(el("circle",{cx:sp.X,cy:sp.Y,r:Math.max(rsrc()*P1.s/(2*FIELD)*1.6,10),fill:"none",stroke:"#9fd8e0","stroke-dasharray":"2 3",style:"cursor:grab"}));
+
+  // ===== side view =====
+  const SY=490, OX=60, LX=460, SX=860, beta=Math.hypot(src.x,src.y);
+  svg.appendChild(txt({x:460,y:446,fill:"#a9bbcf","font-size":12.5,"text-anchor":"middle"},"Side view (angles hugely exaggerated)"));
+  svg.appendChild(el("line",{x1:OX,x2:SX,y1:SY,y2:SY,stroke:"#1c2c42","stroke-dasharray":"3 5"}));
+  svg.appendChild(el("circle",{cx:OX,cy:SY,r:5,fill:"#4f8fd6"})); svg.appendChild(txt({x:OX,y:SY+22,fill:"#a9bbcf","font-size":10.5,"text-anchor":"middle","font-family":MONO},"us"));
+  svg.appendChild(el("ellipse",{cx:LX,cy:SY,rx:7,ry:14,fill:"#f4a261"})); svg.appendChild(txt({x:LX,y:SY+30,fill:"#a9bbcf","font-size":10.5,"text-anchor":"middle","font-family":MONO},"lens"));
+  const sy=SY-Math.min(beta,2.5)*14;
+  svg.appendChild(el("circle",{cx:SX,cy:sy,r:5,fill:"#9fd8e0"})); svg.appendChild(txt({x:SX,y:SY+22,fill:"#a9bbcf","font-size":10.5,"text-anchor":"middle","font-family":MONO},"galaxy"));
+  // image positions along the line through lens and source (exact for the round lenses)
+  const ims=[]; if(lens==="pt"){ const b=beta; ims.push((b+Math.sqrt(b*b+4))/2,(b-Math.sqrt(b*b+4))/2); }
+  else{ ims.push(beta+1); if(beta<1) ims.push(beta-1); }
+  for(const t of ims){ const ly=SY-t*14;
+    svg.appendChild(el("path",{d:`M${SX} ${sy}L${LX} ${ly}L${OX} ${SY}`,fill:"none",stroke:"#ffd166","stroke-width":1.3,"stroke-opacity":0.85}));
+    svg.appendChild(el("line",{x1:OX,y1:SY,x2:OX+(LX-OX)*1.35,y2:SY+(ly-SY)*1.35,stroke:"#ffd166","stroke-dasharray":"2 4","stroke-opacity":0.4})); }
+  return l.sum/unlensedSum;
+}
+
+// ---------- readouts ----------
+function countImages(){
+  const src=srcU(), b=Math.hypot(src.x,src.y);
+  if(lens==="pt") return 2;
+  if(lens==="sis") return b<1?2:1;
+  // elongated lens: count separate bright patches along a ring by sampling the image
+  let peaks=0, prev=false, first=null;
+  for(let k=0;k<360;k++){ const a=k*Math.PI/180; let best=0;
+    for(let r=0.4;r<2.2;r+=0.05){ const x=r*Math.cos(a), y=r*Math.sin(a), [ax,ay]=deflect(x,y); best=Math.max(best,srcBright(x-ax,y-ay)); }
+    const on=best>0.15; if(k===0) first=on; if(on&&!prev) peaks++; prev=on; }
+  if(first&&prev&&peaks>1) peaks--;
+  return Math.max(peaks,1);
+}
+function fmtM(m){ const e=Math.floor(Math.log10(m)); return (m/10**e).toFixed(1)+"×10"+String(e).replace(/[0-9]/g,c=>"⁰¹²³⁴⁵⁶⁷⁸⁹"[+c])+" M☉"; }
+function update(mag){
+  const src=srcU(), b=Math.hypot(src.x,src.y), n=countImages(), ring=b<rsrc()*0.6&&lens!=="sie"&&rsrc()<1.5;
+  document.getElementById("Mv").textContent=fmtM(mass());
+  document.getElementById("rsv").textContent=(+rsS.value).toFixed(2)+"″ across";
+  document.getElementById("readouts").innerHTML=
+    `<span>Einstein radius <b>${thE<10?thE.toFixed(2):thE.toFixed(0)}″</b></span><span>images <b>${ring?"a ring":n}</b></span>`+
+    `<span>magnification <b>${mag.toFixed(1)}×</b></span><span>offset from lens <b>${(b*thE).toFixed(2)}″</b></span>`;
+  document.getElementById("note").textContent=
+    rsrc()>1.5?"The lens isn't massive enough to bend this galaxy's light by much compared with its size, so it's barely distorted. Increase the lens mass."
+    :ring?"The background galaxy sits almost exactly behind the lens, so its light is bent towards us equally from every side, forming an Einstein ring."
+    :b>2.2?"The background galaxy is well away from the lens, so its light is barely bent: we see a single, almost undistorted image."
+    :lens==="sie"&&n>=4?"An elongated lens can split the galaxy into four images arranged around it: an Einstein cross. Each image is light that took a different path past the lens."
+    :mass()>1e14?"A galaxy cluster is so massive that its Einstein radius is tens of arcseconds, big enough to stretch background galaxies into long, thin giant arcs."
+    :n>=2?`Light reaches us along ${n} different paths around the lens, so we see ${n} images of the same galaxy, stretched into arcs and magnified.`
+    :"The galaxy is outside the Einstein radius: we see one stretched and slightly brightened image.";
+  for(const b2 of document.querySelectorAll("#lenses .pill")) b2.classList.toggle("on",b2.dataset.k===lens);
+}
+function render(){ update(draw()); }
+
+// ---------- interaction ----------
+const lb=document.getElementById("lenses");
+for(const [n,k] of LENSES){ const b=document.createElement("button"); b.className="pill"; b.textContent=n; b.dataset.k=k;
+  b.addEventListener("click",()=>{ lens=k; render(); }); lb.appendChild(b); }
+const eb=document.getElementById("examples");
+for(const e of EXAMPLES){ const b=document.createElement("button"); b.className="pill"; b.textContent=e.name;
+  b.addEventListener("click",()=>{ lens=e.lens; MS.value=e.M; const t=thetaE(10**e.M); rsS.value=e.rs*t; srcAs={x:e.bx*t,y:e.by*t};
+    for(const x of eb.querySelectorAll(".pill")) x.classList.toggle("on",x===b); render(); }); eb.appendChild(b); }
+const clearEx=()=>{ for(const x of eb.querySelectorAll(".pill")) x.classList.remove("on"); };
+for(const c of [MS,rsS,tLens,tRing]) c.addEventListener("input",()=>{ if(c===MS||c===rsS) clearEx(); render(); });
+let drag=false, pending=false;
+function moveTo(e){
+  const r=svg.getBoundingClientRect(), X=(e.clientX-r.left)/r.width*920, Y=(e.clientY-r.top)/r.height*540;
+  let P=null; if(X>=P1.x&&X<=P1.x+P1.s) P=P1; else if(X>=P2.x&&X<=P2.x+P2.s) P=P2;
+  if(!P||Y<P.y||Y>P.y+P.s) return false;
+  let x=((X-P.x)/P.s*2-1)*FIELD, y=(1-(Y-P.y)/P.s*2)*FIELD;
+  if(P===P2){ const [ax,ay]=deflect(x,y); x-=ax; y-=ay; }      // clicking the image moves the source to where that light came from
+  srcAs={x:x*thE,y:y*thE}; clearEx();
+  if(!pending){ pending=true; requestAnimationFrame(()=>{ pending=false; render(); }); }
+  return true;
+}
+svg.addEventListener("pointerdown",e=>{ if(moveTo(e)){ drag=true; svg.setPointerCapture(e.pointerId); } });
+svg.addEventListener("pointermove",e=>{ if(drag) moveTo(e); });
+svg.addEventListener("pointerup",()=>drag=false);
+svg.addEventListener("pointercancel",()=>drag=false);
+
+MS.value=12; rsS.value=0.3;
+eb.querySelectorAll(".pill")[1].click();
+</script>
+</body>
+</html>
