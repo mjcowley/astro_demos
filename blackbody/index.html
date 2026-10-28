@@ -10,7 +10,7 @@
     --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
     --panel:#0d1826; --panel-edge:#22354c;
     --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e;
-    --bband:#5b8dd9; --vband:#5fbf7f;
+    --bband:#5b8dd9; --vband:#5fbf7f; --bpband:#5b8dd9; --rpband:#e0715f;
     --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
     --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
@@ -30,6 +30,8 @@
   input[type=range]{flex:1;min-width:220px;accent-color:var(--accent);height:28px}
   .toggles{display:flex;gap:14px;flex-wrap:wrap;padding:0 18px 6px;font-size:13px;color:var(--ink)}
   .toggles label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .fset{padding-bottom:10px}
+  .fset .lbl{color:var(--muted)}
   .readouts{display:flex;gap:24px;flex-wrap:wrap;padding:4px 18px 10px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
   .readouts b{color:var(--ink);font-weight:600}
   table{width:100%;border-collapse:collapse;font-size:13px}
@@ -50,7 +52,7 @@
 <div class="app">
   <header>
     <h1>Blackbody Curve and Colour Index</h1>
-    <div class="sub">Change the temperature and watch Wien's law, Stefan-Boltzmann and B&minus;V respond</div>
+    <div class="sub">Change the temperature and watch Wien's law, Stefan-Boltzmann and <span class="ciName">B&minus;V</span> respond</div>
   </header>
 
   <div class="plotwrap"><svg id="plot" viewBox="0 0 920 430" role="img" aria-label="Blackbody spectral radiance curve"></svg></div>
@@ -61,8 +63,14 @@
     <input id="T" type="range" min="3.176" max="4.602" step="any" value="3.76132632" aria-label="Temperature">
   </div>
 
+  <div class="toggles fset" role="radiogroup" aria-label="Filter set">
+    <span class="lbl">Filters:</span>
+    <label><input type="radio" name="fset" value="johnson" checked> Johnson B and V</label>
+    <label><input type="radio" name="fset" value="gaia"> Gaia BP and RP</label>
+  </div>
+
   <div class="toggles">
-    <label><input id="tFilt" type="checkbox" checked> B and V bandpasses</label>
+    <label><input id="tFilt" type="checkbox" checked> <span id="filtLab">B and V bandpasses</span></label>
     <label><input id="tWien" type="checkbox" checked> Wien peak marker</label>
     <label><input id="tVis" type="checkbox" checked> Visible range</label>
     <label><input id="tComp" type="checkbox"> Comparison curves</label>
@@ -73,21 +81,24 @@
     <span>&lambda;<sub>max</sub> <b id="lmax">5,020 &Aring;</b></span>
     <span>&sigma;T&#8308; <b id="sb">6.29&times;10&#8311; W m&#8315;&sup2;</b></span>
     <span>relative to Sun <b id="rel">1.00&times;</b></span>
-    <span>B&minus;V <b id="bv">+0.47</b></span>
+    <span><span class="ciName">B&minus;V</span> <b id="bv">+0.47</b></span>
     <span>class <b id="cls">G</b></span>
   </div>
 
   <div class="tablewrap">
     <table aria-label="Reference objects">
-      <thead><tr><th>Object</th><th>T</th><th>&lambda;<sub>max</sub></th><th>B&minus;V (blackbody)</th><th>Class</th></tr></thead>
+      <thead><tr><th>Object</th><th>T</th><th>&lambda;<sub>max</sub></th><th><span class="ciName">B&minus;V</span> (blackbody)</th><th>Class</th></tr></thead>
       <tbody id="rtab"></tbody>
     </table>
   </div>
   <div class="hint">Click any row to jump to that temperature.</div>
 
   <footer>
-    Curves are Planck spectral radiance. B and V are Gaussian approximations to the Johnson bandpasses (4400 &Aring; and 5500 &Aring;), with the zero point set so an A0 star at 9,600 K gives B&minus;V = 0.
-    A pure blackbody is bluer than a real star of the same temperature, because line blanketing suppresses real stellar flux in B; expect the Sun to read about +0.47 here against its measured +0.65. Spectral class is therefore taken from the effective temperature rather than from the blackbody colour.
+    Curves are Planck spectral radiance.
+    <span id="fnGaia" hidden>BP and RP are smooth approximations to Gaia's blue (about 330 to 680 nm) and red (about 630 to 1050 nm) photometer bandpasses, not the published passbands. Fluxes are counted in photons, as Gaia does, with the zero point set so an A0 star at 9,600 K gives BP&minus;RP = 0.
+    A pure blackbody doesn't match a real star of the same temperature exactly, because absorption lines and bands reshape real stellar spectra; expect the Sun to read about +0.68 here against its measured +0.82. Spectral class is therefore taken from the effective temperature rather than from the blackbody colour.</span>
+    <span id="fnJohnson">B and V are Gaussian approximations to the Johnson bandpasses (4400 &Aring; and 5500 &Aring;), with the zero point set so an A0 star at 9,600 K gives B&minus;V = 0.
+    A pure blackbody is bluer than a real star of the same temperature, because line blanketing suppresses real stellar flux in B; expect the Sun to read about +0.47 here against its measured +0.65. Spectral class is therefore taken from the effective temperature rather than from the blackbody colour.</span>
     <br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.
   </footer>
 </div>
@@ -117,6 +128,28 @@ const BV_ZP=0.4261;                       // fixes B-V = 0 at T = 9600 K
 function colourIndex(T){
   return -2.5*Math.log10(bandFlux(T,BAND.B)/bandFlux(T,BAND.V))+BV_ZP;
 }
+// Gaia BP and RP: smooth approximations to the real passbands (Angstrom in, relative response out)
+const sgm=x=>1/(1+Math.exp(-x));
+const GAIA={
+  BP:{lo:3000,hi:7200,c:5050,col:"var(--bpband)",R:l=>sgm((l-3700)/120)*sgm((6600-l)/60)},
+  RP:{lo:6000,hi:11000,c:8100,col:"var(--rpband)",R:l=>sgm((l-6450)/50)*sgm((9300-l)/450)},
+};
+function gaiaFlux(T,b){                   // photon-weighted, as Gaia counts photons
+  let num=0,den=0;
+  for(let i=0;i<=400;i++){
+    const l=b.lo+(b.hi-b.lo)*i/400, s=b.R(l)*l;
+    num+=planck(l,T)*s; den+=s;
+  }
+  return num/den;
+}
+const BPRP_ZP=2.5*Math.log10(gaiaFlux(9600,GAIA.BP)/gaiaFlux(9600,GAIA.RP));   // fixes BP-RP = 0 at 9600 K
+function bpRp(T){
+  return -2.5*Math.log10(gaiaFlux(T,GAIA.BP)/gaiaFlux(T,GAIA.RP))+BPRP_ZP;
+}
+const FSETS={johnson:{ci:"B\u2212V",bands:"B and V",index:colourIndex}, gaia:{ci:"BP\u2212RP",bands:"BP and RP",index:bpRp}};
+let fset="johnson";
+const ci=T=>FSETS[fset].index(T);
+
 function specClass(T){                     // effective-temperature sequence, not blackbody B-V
   if(T>=30000) return "O"; if(T>=10000) return "B"; if(T>=7500) return "A";
   if(T>=6000)  return "F"; if(T>=5200)  return "G"; if(T>=3700) return "K"; return "M";
@@ -230,7 +263,19 @@ function draw(){
     logMode?"Spectral radiance  B\u03bb  (W m\u207b\u00b2 m\u207b\u00b9 sr\u207b\u00b9)":"B\u03bb  /  peak"));
 
   // B and V bandpasses
-  if(tFilt.checked){
+  if(tFilt.checked&&fset==="gaia"){
+    for(const k of ["BP","RP"]){
+      const b=GAIA[k];
+      let d="";
+      for(let i=0;i<=120;i++){
+        const l=b.lo+(b.hi-b.lo)*i/120;
+        d+=(d?"L":"M")+xOf(l).toFixed(1)+" "+yOf(0.20*b.R(l)).toFixed(1)+" ";
+      }
+      d+="L"+xOf(b.hi).toFixed(1)+" "+yOf(0)+" L"+xOf(b.lo).toFixed(1)+" "+yOf(0)+" Z";
+      svg.appendChild(el("path",{d,fill:b.col,"fill-opacity":0.24,stroke:b.col,"stroke-opacity":0.6,"stroke-width":1}));
+      svg.appendChild(txt({x:xOf(b.c),y:yOf(0.20)-6,fill:b.col,"font-size":12,"text-anchor":"middle","font-family":MONO},k));
+    }
+  }else if(tFilt.checked){
     for(const k of ["B","V"]){
       const b=BAND[k], sig=b.fwhm/2.3548, l0=b.c-3*sig, l1=b.c+3*sig;
       let d="";
@@ -280,7 +325,7 @@ function sci(v){
   return m.toFixed(2)+"\u00d710"+String(e).replace(/[0-9-]/g,c=>"\u2070\u00b9\u00b2\u00b3\u2074\u2075\u2076\u2077\u2078\u2079"[+c]||"\u207b");
 }
 function updateText(){
-  const T=temp(), bv=colourIndex(T);
+  const T=temp(), bv=ci(T);
   document.getElementById("tval").textContent=T.toLocaleString();
   document.getElementById("lmax").innerHTML=Math.round(WIEN/T).toLocaleString()+" \u00c5";
   document.getElementById("sb").innerHTML=sci(SIG*Math.pow(T,4))+" W m\u207b\u00b2";
@@ -292,8 +337,10 @@ function updateText(){
 }
 
 const rtab=document.getElementById("rtab");
-for(const r of REFS){
-  const bv=colourIndex(r.T), tr=document.createElement("tr");
+function buildTable(){
+ rtab.textContent="";
+ for(const r of REFS){
+  const bv=ci(r.T), tr=document.createElement("tr");
   tr.dataset.t=r.T;
   tr.innerHTML=`<td><span class="dot" style="background:${starColour(r.T)}"></span>${r.name}</td>`+
     `<td class="num">${r.T.toLocaleString()} K</td>`+
@@ -302,11 +349,32 @@ for(const r of REFS){
     `<td>${specClass(r.T)}</td>`;
   tr.addEventListener("click",()=>{ Ts.value=Math.log10(r.T); render(); });
   rtab.appendChild(tr);
+ }
 }
+
+// filter set: Johnson B and V by default, Gaia with ?filters=gaia
+const fRadios=[...document.querySelectorAll('input[name="fset"]')];
+function setFilters(v,updateUrl){
+  fset=FSETS[v]?v:"johnson";
+  for(const r of fRadios) r.checked=(r.value===fset);
+  for(const n of document.querySelectorAll(".ciName")) n.textContent=FSETS[fset].ci;
+  document.getElementById("filtLab").textContent=FSETS[fset].bands+" bandpasses";
+  document.getElementById("fnGaia").hidden=(fset!=="gaia");
+  document.getElementById("fnJohnson").hidden=(fset==="gaia");
+  if(updateUrl){
+    try{
+      const u=new URL(location.href);
+      if(fset==="gaia") u.searchParams.set("filters","gaia"); else u.searchParams.delete("filters");
+      history.replaceState(null,"",u);
+    }catch(e){}
+  }
+  buildTable(); render();
+}
+for(const r of fRadios) r.addEventListener("change",()=>{ if(r.checked) setFilters(r.value,true); });
 
 function render(){ draw(); updateText(); }
 for(const c of [Ts,tFilt,tWien,tVis,tComp,tLog]) c.addEventListener("input",render);
-render();
+setFilters((new URLSearchParams(location.search).get("filters")||"").toLowerCase(),false);
 </script>
 </body>
 </html>
