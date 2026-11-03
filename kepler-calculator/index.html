@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Kepler's Third Law Calculator</title>
+<style>
+  :root{
+    --ink:#182430; --muted:#5b6b7a; --line:#d8e0e8;
+    --panel:#0d1826; --panel-edge:#22354c;
+    --spec:#ffd166; --ghost:#8aa0b8; --accent:#0f766e;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:#f4f6f8;padding:16px 8px}
+  .app{max-width:920px;margin:0 auto;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:14px 18px 10px}
+  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.01em}
+  header .sub{font-size:12px;color:var(--muted)}
+  .tabs{display:flex;gap:6px;padding:12px 18px 0;border-top:1px solid var(--line)}
+  .tab{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border:1px solid var(--line);border-bottom:none;background:#f4f6f8;color:var(--muted);border-radius:7px 7px 0 0;cursor:pointer}
+  .tab.on{background:#fff;color:var(--accent);border-color:var(--accent)}
+  section{border-top:1px solid var(--line);padding:12px 18px 14px}
+  h2{font-size:14.5px;margin:0 0 6px;font-weight:650}
+  h2 .num{display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:50%;background:var(--accent);color:#fff;font-size:12.5px;margin-right:6px}
+  p{font-size:13.5px;line-height:1.5;margin:4px 0 8px}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;margin:4px 0 8px}
+  .presets .lbl{color:var(--muted);margin-right:2px}
+  .pill{font:inherit;font-size:12.5px;padding:5px 11px;border:1px solid var(--line);background:#fff;border-radius:99px;cursor:pointer;color:var(--ink)}
+  .pill:hover{border-color:var(--accent)}
+  .pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn{font:inherit;font-size:12.5px;font-weight:600;padding:5px 11px;border:1px solid var(--accent);background:#fff;color:var(--accent);border-radius:6px;cursor:pointer}
+  .grid2{display:grid;grid-template-columns:minmax(230px,300px) 1fr;gap:14px;align-items:start}
+  .tablewrap{max-height:430px;overflow-y:auto;border:1px solid var(--line);border-radius:6px}
+  table{border-collapse:collapse;width:100%;font-size:12.5px}
+  th,td{padding:3px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+  th{background:#f4f6f8;font-weight:600;position:sticky;top:0}
+  td input{width:76px;font:inherit;font-family:var(--mono);padding:2px 4px;border:1px solid var(--line);border-radius:4px}
+  .plotwrap{background:var(--panel);border:1px solid var(--panel-edge);border-radius:6px}
+  svg{display:block;width:100%;height:auto}
+  .toggles{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;margin-top:8px;align-items:center}
+  .toggles label{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .fields{display:grid;grid-template-columns:minmax(200px,280px) 130px 1fr;gap:6px 12px;align-items:center;font-size:13px}
+  .fields input{font:inherit;font-family:var(--mono);font-size:13px;padding:4px 6px;border:1px solid var(--line);border-radius:4px;width:120px}
+  .fields .u{color:var(--muted);font-size:12.5px}
+  .working{font-size:13.5px;line-height:1.55;background:#f7f9fb;border:1px solid var(--line);border-radius:6px;padding:10px 14px}
+  .working .step{margin:0 0 10px}
+  .working .step:last-child{margin-bottom:0}
+  .working .why{color:var(--muted);font-size:12.5px}
+  .eq{font-family:var(--mono);font-size:13px;display:block;margin:2px 0 0 12px}
+  .result{font-weight:650;color:var(--accent)}
+  .note{margin:10px 0 0;padding:10px 14px;border-left:4px solid var(--accent);background:#f2f6fa;border-radius:0 6px 6px 0;font-size:13.5px;line-height:1.5}
+  .muted{color:var(--muted)}
+  .hide{display:none!important}
+  footer{padding:10px 18px 14px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--line)}
+  @media (max-width:700px){
+    header{flex-direction:column;gap:2px}
+    .grid2{grid-template-columns:1fr}
+    .fields{grid-template-columns:1fr 130px} .fields .u{grid-column:1/-1;margin-top:-4px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Kepler's Third Law Calculator</h1>
+    <div class="sub">Turn a moon's or planet's orbit into a mass, or a mass and period into an orbit size</div>
+  </header>
+
+  <div class="tabs"><button class="tab on" data-m="mass">Find a mass</button><button class="tab" data-m="orbit">Find an orbit size</button></div>
+
+  <!-- ======================= FIND A MASS ======================= -->
+  <div class="m-mass">
+    <section>
+      <h2><span class="num">1</span>Plot your measurements</h2>
+      <p>Type in how far the moon is from the planet in each reading, in arcminutes. Use a minus sign for one side (for example, left of the planet) and no sign for the other. Leave a box empty if the moon was hidden behind or in front of the planet.</p>
+      <div class="presets"><span class="lbl">Readings every</span>
+        <input id="stepH" type="number" min="0.5" max="72" step="0.5" value="6" style="width:62px;font:inherit;font-family:var(--mono);padding:3px 5px;border:1px solid var(--line);border-radius:4px"> hours,
+        <input id="nRows" type="number" min="4" max="40" step="1" value="17" style="width:56px;font:inherit;font-family:var(--mono);padding:3px 5px;border:1px solid var(--line);border-radius:4px"> readings
+        <button class="btn" id="clear" style="margin-left:8px">Clear</button>
+        <button class="btn" id="example">Fill with example data</button>
+      </div>
+      <div class="grid2">
+        <div class="tablewrap"><table><thead><tr><th>#</th><th>Time since first (h)</th><th>Position (&prime;)</th></tr></thead><tbody id="rows"></tbody></table></div>
+        <div>
+          <div class="plotwrap"><svg id="plot" viewBox="0 0 580 360" role="img" aria-label="Plot of the moon's position against time"></svg></div>
+          <div class="toggles"><label><input id="tFit" type="checkbox"> Show the best-fit wave</label><span class="muted" id="fitText"></span></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="num">2</span>Read the orbit off your plot</h2>
+      <p>The moon swings from one side of the planet to the other and back, so its positions trace a wave. The <b>period</b> is the time for one full wave (for example, from one peak on the right to the next peak on the right). The <b>largest distance</b> from the planet is the height of a peak, and it's the radius of the orbit seen from Earth.</p>
+      <div class="presets" id="mpresets"><span class="lbl">Or try a known moon:</span></div>
+      <div class="fields">
+        <label for="P">Period</label><input id="P" type="number" step="any" placeholder="e.g. 3.6"><span class="u">days</span>
+        <label for="th">Largest distance from the planet</label><input id="th" type="number" step="any" placeholder="e.g. 3.4"><span class="u">arcminutes (&prime;)</span>
+        <label for="d">Distance from Earth to the planet</label><input id="d" type="number" step="any" placeholder="e.g. 4.4"><span class="u">AU (Stellarium shows this when you select the planet)</span>
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="num">3</span>Kepler's third law, step by step</h2>
+      <div class="working" id="mwork"></div>
+      <div class="note" id="mnote"></div>
+    </section>
+  </div>
+
+  <!-- ======================= FIND AN ORBIT SIZE ======================= -->
+  <div class="m-orbit hide">
+    <section>
+      <h2><span class="num">1</span>The period and the mass</h2>
+      <p>Kepler's third law works the other way round too. If you know how long a planet takes to go around its star, and the star's mass, you can work out how far the planet is from the star. This is how astronomers find the orbit of a transiting exoplanet.</p>
+      <div class="presets" id="opresets"><span class="lbl">Try:</span></div>
+      <div class="fields">
+        <label for="oP">Orbital period</label><input id="oP" type="number" step="any" value="2.152"><span class="u">days</span>
+        <label for="oM">Mass of the star</label><input id="oM" type="number" step="any" value="0.85"><span class="u">solar masses (the Sun = 1)</span>
+      </div>
+    </section>
+    <section>
+      <h2><span class="num">2</span>Kepler's third law, step by step</h2>
+      <div class="working" id="owork"></div>
+      <div class="note" id="onote"></div>
+    </section>
+  </div>
+
+  <footer>
+    Uses Kepler's third law as Newton wrote it, a&sup3; = M P&sup2; with a in AU, P in years and M in solar masses, assuming the moon or planet is much lighter than the body it orbits. The orbit size comes from the small-angle rule, a = d &times; &theta; with &theta; in radians. Values for the Galilean moons and planets are standard reference values.
+    <br>Built for teaching use by the <a href="https://research.qut.edu.au/qutastrophysics/" style="color:var(--accent)">QUT Astrophysics Research Group</a>.
+  </footer>
+</div>
+
+<script>
+"use strict";
+const AU_KM=1.495979e8, DAYS_YR=365.25, MJ_PER_MSUN=1047.57, ME_PER_MSUN=332946;
+// Galilean moons: period (days), orbit radius (km)
+const MOONS=[["Io",1.769,421700],["Europa",3.551,671100],["Ganymede",7.155,1070400],["Callisto",16.689,1882700]];
+const OPRESETS=[["WASP-2b",2.152,0.85],["Mercury",87.97,1],["Earth",365.25,1],["Jupiter",4332.6,1]];
+// Example readings: Europa every 6 h from 1 March 2027, 9 pm Brisbane time (positive = west of Jupiter), Jupiter 4.42 AU away
+const EXAMPLE=[1.94,0.52,-1.01,-2.36,-3.26,-3.54,-3.15,-2.16,-0.76,0.77,2.14,3.09,3.43,3.10,2.16,0.80,-0.72];
+
+const $=id=>document.getElementById(id);
+const fmt=(x,s=3)=>{ if(!isFinite(x)) return "?"; const a=Math.abs(x);
+  if(a!==0&&(a<1e-3||a>=1e6)){ const e=Math.floor(Math.log10(a)), m=x/Math.pow(10,e); return m.toPrecision(s)+" &times; 10<sup>"+e+"</sup>"; }
+  return (+x.toPrecision(s)).toLocaleString("en-AU",{maximumSignificantDigits:s}); };
+
+// ---------- mode tabs ----------
+let mode="mass";
+function setMode(m){ mode=m;
+  document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on",b.dataset.m===m));
+  document.querySelector(".m-mass").classList.toggle("hide",m!=="mass");
+  document.querySelector(".m-orbit").classList.toggle("hide",m!=="orbit");
+}
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>setMode(b.dataset.m));
+
+// ---------- step 1: table and plot ----------
+let values=[];
+function buildRows(){
+  const n=Math.max(4,Math.min(40,Math.round(+$("nRows").value||17))), h=+$("stepH").value||6;
+  values.length=n;
+  let html="";
+  for(let i=0;i<n;i++){
+    const v=values[i]; const val=(v===undefined||v===null||!isFinite(v))?"":v;
+    html+=`<tr><td>${i+1}</td><td>${fmt(i*h,4)}</td><td><input data-i="${i}" type="number" step="any" value="${val}" aria-label="Position for reading ${i+1}"></td></tr>`;
+  }
+  $("rows").innerHTML=html;
+  $("rows").querySelectorAll("input").forEach(inp=>inp.oninput=()=>{ const t=inp.value.trim(); values[+inp.dataset.i]=t===""?null:+t; drawPlot(); });
+  drawPlot();
+}
+$("stepH").oninput=buildRows; $("nRows").oninput=buildRows;
+$("clear").onclick=()=>{ values=[]; buildRows(); };
+$("example").onclick=()=>{ $("stepH").value=6; $("nRows").value=EXAMPLE.length; values=EXAMPLE.slice(); buildRows(); };
+
+function points(){ const h=+$("stepH").value||6, pts=[];
+  values.forEach((v,i)=>{ if(v!==null&&v!==undefined&&isFinite(v)) pts.push([i*h/24,v]); }); return pts; }
+
+// least-squares fit of x = A sin(wt) + B cos(wt) + C, scanning the period
+function fitWave(pts){
+  if(pts.length<5) return null;
+  const T=pts[pts.length-1][0]-pts[0][0]; if(T<=0) return null;
+  let best=null;
+  for(let P=0.3;P<=Math.max(2*T,1);P*=1.002){
+    const w=2*Math.PI/P; let S=[[0,0,0],[0,0,0],[0,0,0]], r=[0,0,0];
+    for(const [t,x] of pts){ const f=[Math.sin(w*t),Math.cos(w*t),1];
+      for(let a=0;a<3;a++){ r[a]+=f[a]*x; for(let b=0;b<3;b++) S[a][b]+=f[a]*f[b]; } }
+    const c=solve3(S,r); if(!c) continue;
+    let res=0; for(const [t,x] of pts){ const m=c[0]*Math.sin(w*t)+c[1]*Math.cos(w*t)+c[2]; res+=(x-m)*(x-m); }
+    if(!best||res<best.res) best={P,c,res,w};
+  }
+  if(best) best.amp=Math.hypot(best.c[0],best.c[1]);
+  return best;
+}
+function solve3(M,v){ const A=M.map((row,i)=>[...row,v[i]]);
+  for(let i=0;i<3;i++){ let p=i; for(let k=i+1;k<3;k++) if(Math.abs(A[k][i])>Math.abs(A[p][i])) p=k;
+    if(Math.abs(A[p][i])<1e-12) return null; [A[i],A[p]]=[A[p],A[i]];
+    for(let k=0;k<3;k++) if(k!==i){ const f=A[k][i]/A[i][i]; for(let j=i;j<4;j++) A[k][j]-=f*A[i][j]; } }
+  return [A[0][3]/A[0][0],A[1][3]/A[1][1],A[2][3]/A[2][2]]; }
+
+const svg=$("plot"), NS="http://www.w3.org/2000/svg";
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function txt(a,s){const t=el("text",a);t.textContent=s;return t;}
+function niceStep(range,n){ const raw=range/n, p=Math.pow(10,Math.floor(Math.log10(raw))), m=raw/p; return (m<1.5?1:m<3?2:m<7?5:10)*p; }
+
+function drawPlot(){
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  const X0=58,X1=566,Y0=16,Y1=318;
+  const h=+$("stepH").value||6, n=values.length, tmax=Math.max((n-1)*h/24,0.5);
+  const pts=points(); let ymax=1;
+  pts.forEach(p=>ymax=Math.max(ymax,Math.abs(p[1])));
+  ymax=Math.ceil(ymax*1.15*2)/2;
+  const X=t=>X0+(X1-X0)*t/tmax, Y=v=>(Y0+Y1)/2-(Y1-Y0)/2*v/ymax;
+  const g=el("g",{});
+  const ts=niceStep(tmax,8);
+  for(let t=0;t<=tmax+1e-9;t+=ts){ g.appendChild(el("line",{x1:X(t),x2:X(t),y1:Y0,y2:Y1,stroke:"#22354c"}));
+    g.appendChild(txt({x:X(t),y:Y1+16,fill:"#8aa0b8","font-size":11,"text-anchor":"middle"},(+t.toFixed(2)).toString())); }
+  // finer grid every quarter of a day so peaks can be read accurately
+  for(let t=0;t<=tmax+1e-9;t+=ts/4) g.appendChild(el("line",{x1:X(t),x2:X(t),y1:Y0,y2:Y1,stroke:"#22354c","stroke-opacity":0.45,"stroke-dasharray":"1 3"}));
+  const ys=niceStep(ymax,4);
+  for(let v=-Math.floor(ymax/ys)*ys;v<=ymax+1e-9;v+=ys){ g.appendChild(el("line",{x1:X0,x2:X1,y1:Y(v),y2:Y(v),stroke:Math.abs(v)<1e-9?"#8aa0b8":"#22354c"}));
+    g.appendChild(txt({x:X0-6,y:Y(v)+4,fill:"#8aa0b8","font-size":11,"text-anchor":"end"},(+v.toFixed(2)).toString())); }
+  g.appendChild(txt({x:(X0+X1)/2,y:Y1+34,fill:"#cfd9e3","font-size":12,"text-anchor":"middle"},"Time since the first reading (days)"));
+  const yl=txt({x:16,y:(Y0+Y1)/2,fill:"#cfd9e3","font-size":12,"text-anchor":"middle",transform:`rotate(-90 16 ${(Y0+Y1)/2})`},"Distance from the planet (′)"); g.appendChild(yl);
+  g.appendChild(txt({x:X0+6,y:Y(0)+15,fill:"#ffd166","font-size":11,"text-anchor":"start"},"the planet"));
+  svg.appendChild(g);
+  const fit=$("tFit").checked?fitWave(pts):null;
+  if(fit){ let d="";
+    for(let i=0;i<=400;i++){ const t=tmax*i/400, v=fit.c[0]*Math.sin(fit.w*t)+fit.c[1]*Math.cos(fit.w*t)+fit.c[2];
+      d+=(i?"L":"M")+X(t).toFixed(1)+","+Math.max(Y0,Math.min(Y1,Y(v))).toFixed(1); }
+    svg.appendChild(el("path",{d,fill:"none",stroke:"#8aa0b8","stroke-width":1.6,"stroke-dasharray":"5 4"}));
+    $("fitText").innerHTML=`Best fit: period ${fmt(fit.P)} days, largest distance ${fmt(fit.amp)}&prime;`;
+  } else $("fitText").innerHTML=$("tFit").checked?"Add at least five readings to fit a wave.":"";
+  if(pts.length>1){ let d=""; pts.forEach((p,i)=>d+=(i?"L":"M")+X(p[0]).toFixed(1)+","+Y(p[1]).toFixed(1));
+    svg.appendChild(el("path",{d,fill:"none",stroke:"#ffd166","stroke-opacity":0.35,"stroke-width":1})); }
+  pts.forEach(p=>svg.appendChild(el("circle",{cx:X(p[0]),cy:Y(p[1]),r:4.5,fill:"#ffd166"})));
+  if(!pts.length) svg.appendChild(txt({x:(X0+X1)/2,y:(Y0+Y1)/2-12,fill:"#8aa0b8","font-size":13,"text-anchor":"middle"},"Your readings will appear here"));
+}
+$("tFit").onchange=drawPlot;
+
+// ---------- step 2 and 3: the calculation ----------
+const mp=$("mpresets");
+MOONS.forEach(([name,P,akm])=>{ const b=document.createElement("button"); b.className="pill"; b.textContent=name;
+  b.onclick=()=>{ if(!(+$("d").value>0)) $("d").value=4.42; const d=+$("d").value; $("P").value=P; $("th").value=(+(akm/(d*AU_KM)*180/Math.PI*60).toFixed(2)); calcMass(); };
+  mp.appendChild(b); });
+["P","th","d"].forEach(id=>$(id).oninput=calcMass);
+
+function calcMass(){
+  const P=+$("P").value, th=+$("th").value, d=+$("d").value, w=$("mwork");
+  if(!(P>0&&th>0&&d>0)){ w.innerHTML="<span class='muted'>Enter a period, a largest distance and a distance from Earth (all greater than zero).</span>"; $("mnote").textContent=""; return; }
+  const deg=th/60, rad=deg*Math.PI/180, aAU=d*rad, akm=aAU*AU_KM, Pyr=P/DAYS_YR, M=aAU**3/Pyr**2, MJ=M*MJ_PER_MSUN, ME=M*ME_PER_MSUN;
+  w.innerHTML=`
+  <div class="step"><b>The angle in radians.</b> <span class="why">There are 60 arcminutes in a degree, and 180 degrees is &pi; radians.</span>
+    <span class="eq">&theta; = ${fmt(th)}&prime; &divide; 60 = ${fmt(deg)}&deg;</span>
+    <span class="eq">&theta; = ${fmt(deg)}&deg; &times; &pi; &divide; 180 = ${fmt(rad)} radians</span></div>
+  <div class="step"><b>The size of the orbit.</b> <span class="why">For a small angle, the distance across is the distance away times the angle in radians.</span>
+    <span class="eq">a = d &times; &theta; = ${fmt(d)} AU &times; ${fmt(rad)} = <span class="result">${fmt(aAU)} AU</span></span>
+    <span class="eq">  = ${fmt(aAU)} &times; ${fmt(AU_KM,4)} km = ${fmt(akm)} km</span></div>
+  <div class="step"><b>The period in years.</b>
+    <span class="eq">P = ${fmt(P)} days &divide; 365.25 = <span class="result">${fmt(Pyr)} years</span></span></div>
+  <div class="step"><b>Kepler's third law.</b> <span class="why">With a in AU and P in years, the mass of the body being orbited, in solar masses, is a&sup3; &divide; P&sup2;.</span>
+    <span class="eq">M = a&sup3; &divide; P&sup2; = (${fmt(aAU)})&sup3; &divide; (${fmt(Pyr)})&sup2;</span>
+    <span class="eq">  = ${fmt(aAU**3)} &divide; ${fmt(Pyr**2)} = <span class="result">${fmt(M)} solar masses</span></span></div>
+  <div class="step"><b>Compare with familiar masses.</b> <span class="why">Jupiter's mass is 1/1048 of the Sun's, and Earth's is 1/332,946 of the Sun's.</span>
+    <span class="eq">M = ${fmt(M)} &times; 1048 = <span class="result">${fmt(MJ)} Jupiter masses</span></span>
+    <span class="eq">M = ${fmt(M)} &times; 332,946 = <span class="result">${fmt(ME)} Earth masses</span></span></div>`;
+  const off=Math.abs(MJ-1)*100;
+  $("mnote").innerHTML=off<=10?`That's within ${Math.max(1,Math.round(off))}% of Jupiter's true mass. Not bad for a few measurements of a moon.`
+    : MJ>0.3&&MJ<3?`That's ${Math.round(off)}% ${MJ>1?"more":"less"} than Jupiter's true mass. Because the orbit size is cubed, a small error in the largest distance makes a big difference, so check your peak height first.`
+    : `If you measured a moon of Jupiter, that's a long way from Jupiter's true mass (1 Jupiter mass). Check the units: the period in days and the largest distance in arcminutes.`;
+}
+
+// ---------- find an orbit size ----------
+const op=$("opresets");
+OPRESETS.forEach(([name,P,M])=>{ const b=document.createElement("button"); b.className="pill"; b.textContent=name;
+  b.onclick=()=>{ $("oP").value=P; $("oM").value=M; calcOrbit(); }; op.appendChild(b); });
+["oP","oM"].forEach(id=>$(id).oninput=calcOrbit);
+function calcOrbit(){
+  const P=+$("oP").value, M=+$("oM").value, w=$("owork");
+  if(!(P>0&&M>0)){ w.innerHTML="<span class='muted'>Enter a period and a mass (both greater than zero).</span>"; $("onote").textContent=""; return; }
+  const Pyr=P/DAYS_YR, a=Math.cbrt(M*Pyr*Pyr), akm=a*AU_KM;
+  w.innerHTML=`
+  <div class="step"><b>The period in years.</b>
+    <span class="eq">P = ${fmt(P)} days &divide; 365.25 = <span class="result">${fmt(Pyr)} years</span></span></div>
+  <div class="step"><b>Kepler's third law, rearranged.</b> <span class="why">a&sup3; = M &times; P&sup2;, so the orbit size is the cube root of M &times; P&sup2;.</span>
+    <span class="eq">a&sup3; = ${fmt(M)} &times; (${fmt(Pyr)})&sup2; = ${fmt(M*Pyr*Pyr)}</span>
+    <span class="eq">a = &#8731;${fmt(M*Pyr*Pyr)} = <span class="result">${fmt(a)} AU</span></span>
+    <span class="eq">  = ${fmt(a)} &times; ${fmt(AU_KM,4)} km = ${fmt(akm)} km</span></div>`;
+  $("onote").innerHTML=a<0.387?`That's ${fmt(0.387/a,2)} times closer to its star than Mercury is to the Sun (0.387 AU).`
+    : `That's ${fmt(a/1,3)} times Earth's distance from the Sun.`;
+}
+
+// ---------- start-up ----------
+const q=new URLSearchParams(location.search);
+if((q.get("mode")||"").toLowerCase()==="orbit") setMode("orbit");
+if((q.get("data")||"").toLowerCase()==="example"){ values=EXAMPLE.slice(); }
+buildRows(); calcMass(); calcOrbit();
+</script>
+</body>
+</html>
