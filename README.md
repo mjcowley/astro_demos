@@ -18,6 +18,7 @@ Companion repository: [Astro_Code](https://github.com/mjcowley/Astro_Code), a co
 | [Hubble Diagram Fitter](https://mjcowley.github.io/astro_demos/hubble/) | Fit Hubble's 1929 data or a simulated modern survey to measure H&#8320; and the Hubble time. |
 | [Celestial Sphere Explorer](https://mjcowley.github.io/astro_demos/celestial-sphere/) | Set your latitude, date and time to see the celestial sphere, your sky overhead, circumpolar stars and the Southern Cross. |
 | [Kepler's Laws and Orbits](https://mjcowley.github.io/astro_demos/kepler/) | Change an orbit's size and shape to explore all three of Kepler's laws, or launch a planet at different speeds up to escape. |
+| [Kepler's Third Law Calculator](https://mjcowley.github.io/astro_demos/kepler-calculator/) | Plot a moon's positions over time, read off its period and orbit size, and work through Kepler's third law step by step to weigh the planet, or find an exoplanet's orbit from its period. |
 | [Stellar Parallax](https://mjcowley.github.io/astro_demos/parallax/) | Photograph a nearby star six months apart, measure its shift and work out its distance in parsecs. |
 | [Telescope Resolution and Light Collection](https://mjcowley.github.io/astro_demos/telescope/) | Split close double stars by changing aperture, wavelength and seeing, and compare light-gathering power. |
 | [Solar System to Scale](https://mjcowley.github.io/astro_demos/solar-system/) | Travel outward from the Sun with sizes and distances on one scale, and build a scale model you could walk. |
