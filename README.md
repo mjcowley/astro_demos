@@ -57,6 +57,18 @@ Set the height generously, since a cross-origin iframe cannot resize itself to f
 
 Each demo lives in its own folder with `index.html` as the entry point, which keeps the published URLs clean.
 
+## Licence and credits
+
+© 2026 Queensland University of Technology. Created by Dr Michael Cowley, QUT Astrophysics Research Group (QARG).
+
+* **Teaching materials** (the text, diagrams and design of each demo) are licensed under the [Creative Commons Attribution 4.0 International licence (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/). See [LICENSE](LICENSE).
+* **Code** (the HTML, CSS and JavaScript of each demo page) is licensed under the [MIT License](LICENSE-CODE).
+* **Not covered by these licences:** the QUT and QARG logos, which stay under their owners' terms.
+
+You're welcome to reuse and adapt these materials. Please credit them as: *Astro_Demos by Michael Cowley, QUT Astrophysics Research Group, © Queensland University of Technology, CC BY 4.0, github.com/mjcowley/astro_demos*.
+
+**Use of AI:** These materials were developed by Dr Michael Cowley with the assistance of Claude, an AI model made by Anthropic, which helped write the demos' code and text. All content was directed, reviewed and edited by the author, who takes responsibility for its accuracy.
+
 ## Contributing
 
 Contributions are welcome! If you have any ideas for improvements or new demos, feel free to open an issue or submit a pull request.
